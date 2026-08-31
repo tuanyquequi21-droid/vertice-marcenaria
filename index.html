@@ -1,18 +1,23 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Vértice Marcenaria — Orçamentos</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
   <div id="toast" class="toast"></div>
+
   <section id="loginView" class="login-view">
     <div class="login-card">
-      <div class="brand-mark">V</div><p class="eyebrow">VÉRTICE MARCENARIA</p>
-      <h1>Orçamentos com precisão.</h1><p class="muted">Gestão de clientes, materiais e propostas em um só lugar.</p>
+      <div class="brand-mark">V</div>
+      <p class="eyebrow">VÉRTICE MARCENARIA</p>
+      <h1>Orçamentos com precisão.</h1>
+      <p class="muted">Gestão de clientes, materiais e propostas em um só lugar.</p>
       <form id="loginForm" class="stack">
         <label>E-mail<input id="loginEmail" type="email" required autocomplete="email"></label>
         <label>Senha<input id="loginPassword" type="password" required autocomplete="current-password"></label>
@@ -24,7 +29,10 @@
 
   <div id="appView" class="app hidden">
     <aside class="sidebar">
-      <div class="brand"><div class="brand-mark small">V</div><div><strong>Vértice</strong><span>Marcenaria</span></div></div>
+      <div class="brand">
+        <div class="brand-mark small">V</div>
+        <div><strong>Vértice</strong><span>Marcenaria</span></div>
+      </div>
       <nav>
         <button data-page="dashboard" class="nav-item active">⌂ <span>Dashboard</span></button>
         <button data-page="orcamento" class="nav-item">＋ <span>Novo orçamento</span></button>
@@ -32,12 +40,33 @@
         <button data-page="clientes" class="nav-item">♙ <span>Clientes</span></button>
         <button data-page="materiais" class="nav-item">▦ <span>Materiais</span></button>
       </nav>
-      <div class="sidebar-bottom"><div id="userEmail" class="user-email"></div><button id="logoutBtn" class="logout">Sair</button></div>
+      <div class="sidebar-bottom">
+        <div id="userEmail" class="user-email"></div>
+        <button id="logoutBtn" class="logout">Sair</button>
+      </div>
     </aside>
-    <main class="main"><header class="topbar"><div><p class="eyebrow">VÉRTICE</p><h2 id="pageTitle">Dashboard</h2></div><button class="btn primary" data-page="orcamento">+ Novo orçamento</button></header>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">VÉRTICE</p>
+          <h2 id="pageTitle">Dashboard</h2>
+        </div>
+        <button class="btn primary" data-page="orcamento">+ Novo orçamento</button>
+      </header>
       <div id="pageContent"></div>
     </main>
   </div>
+
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/config.js"></script><script src="assets/app.js"></script>
-</body></html>
+  
+  <!-- Gerador de PDF (jsPDF e AutoTable) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- Scripts do Sistema -->
+  <script src="assets/config.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
