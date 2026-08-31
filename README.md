@@ -1,33 +1,35 @@
-# Vértice Marcenaria — versão Supabase
+# Vértice Marcenaria — versão HTML + Supabase
 
-Migração do sistema original Flask + SQLite para PostgreSQL no Supabase, com catálogo, clientes, orçamento, histórico e autenticação via Supabase Auth.
+Aplicação estática em HTML/CSS/JavaScript, sem Flask, Python ou banco local. O frontend pode ser versionado e hospedado pelo GitHub Pages; os dados ficam no Supabase.
 
-## 1. Banco
-No Supabase, abra **SQL Editor**, cole o conteúdo de `schema.sql` e execute.
+## 1. Supabase
 
-## 2. Auth
-Em **Authentication > Users**, crie o usuário administrador com e-mail e senha. Não existe mais usuário/senha fixa dentro do código.
+1. Abra o SQL Editor do seu projeto.
+2. Execute `schema.sql`.
+3. Em Authentication > Users, crie o usuário que entrará no sistema.
+4. Copie a URL e a chave anon/publishable do projeto.
+5. Abra `assets/config.js` e substitua os dois placeholders.
 
-## 3. Configuração local
-Copie `.env.example` para `.env` e preencha:
-- `DATABASE_URL`: conexão PostgreSQL do Supabase, de preferência a Connection String apropriada ao seu ambiente.
-- `SUPABASE_URL`: URL do projeto.
-- `SUPABASE_ANON_KEY`: chave anon/public do projeto.
-- `FLASK_SECRET_KEY`: segredo aleatório longo.
+**Nunca coloque a chave `service_role` no HTML/JavaScript.**
 
-## 4. Instalação e execução
+## 2. Rodar localmente
+
+Como o navegador pode bloquear módulos/arquivos locais, use um servidor simples:
+
 ```bash
-python -m venv .venv
-# Windows: .venv\Scripts\activate
-# Linux/macOS: source .venv/bin/activate
-pip install -r requirements.txt
-python app.py
+python -m http.server 8000
 ```
 
-Abra `http://localhost:5000`.
+Depois abra `http://localhost:8000`.
 
-## Observações
-- O cálculo original foi preservado, mas o armazenamento agora é PostgreSQL/Supabase.
-- Orçamentos ganharam `orcamento_itens` para permitir guardar a composição detalhada.
-- A criação de pastas locais de clientes foi removida. Para anexos/projetos, o próximo passo recomendado é integrar Supabase Storage.
-- Não coloque `service_role` no navegador nem no repositório.
+## 3. GitHub Pages
+
+No GitHub: Settings > Pages > Deploy from a branch > `main` > `/ (root)`.
+
+## 4. Estrutura
+
+- `index.html`: aplicação inteira.
+- `assets/style.css`: identidade visual responsiva.
+- `assets/app.js`: autenticação, CRUD e cálculo dos orçamentos.
+- `assets/config.js`: somente URL e chave pública do Supabase.
+- `schema.sql`: tabelas e políticas RLS.
