@@ -1,7 +1,9 @@
 import os
+import json
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 from datetime import datetime, timezone
+from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, session, flash, jsonify
@@ -9,30 +11,41 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, desc
 from supabase import create_client
 
+# 1. Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-only-change-me')
 
+# 2. Configuração de conexão do Banco de Dados PostgreSQL (Supabase)
 DATABASE_URL = os.getenv('DATABASE_URL')
 if not DATABASE_URL:
-    raise RuntimeError('DATABASE_URL não configurada. Copie .env.example para .env e informe a conexão do Supabase.')
+    raise RuntimeError('DATABASE_URL não configurada. Verifique o seu arquivo .env.')
+
+# Tratamento para garantir suporte ao protocolo postgresql:// do SQLAlchemy
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True, 'pool_recycle': 280}
 
 db = SQLAlchemy(app)
 
+# 3. Inicialização do Client do Supabase (para autenticação)
 SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_ANON_KEY = os.getenv('SUPABASE_ANON_KEY')
-supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY) if SUPABASE_URL and SUPABASE_ANON_KEY else None
+SUPABASE_KEY = os.getenv('SUPABASE_KEY') or os.getenv('SUPABASE_ANON_KEY')
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
+# Configurações padrão
 DEFAULT_CONFIGS = {
     'dia_trabalho': 250.0, 'luz_hora': 4.5, 'agua_hora': 1.2,
     'maquina_depreciacao_hora': 3.0, 'parafusos_un': 0.15, 'cola_g': 0.05,
     'fita_borda_m': 2.50, 'desgaste_serra_corte': 0.10, 'gasolina_km': 1.80,
     'custo_hora_3d': 50.0,
 }
+
+# --- MODELOS DO BANCO DE DADOS ---
 
 class Cliente(db.Model):
     __tablename__ = 'clientes'
@@ -96,6 +109,8 @@ class ConfigGlobal(db.Model):
     chave = db.Column(db.String(50), unique=True, nullable=False)
     valor = db.Column(db.Numeric(12, 4), nullable=False)
 
+# --- FUNÇÕES AUXILIARES ---
+
 def money(v):
     try:
         if v is None or v == '': return Decimal('0')
@@ -128,6 +143,8 @@ def login_required(fn):
 def inject_globals():
     return {'current_user': session.get('user')}
 
+# --- ROTAS DA APLICAÇÃO ---
+
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -135,7 +152,7 @@ def login():
         password = request.form.get('password', '')
         try:
             if not supabase:
-                raise RuntimeError('Supabase Auth não configurado.')
+                raise RuntimeError('Supabase Auth não configurado. Verifique as chaves SUPABASE_URL e SUPABASE_KEY no .env.')
             response = supabase.auth.sign_in_with_password({'email': email, 'password': password})
             if not response.user:
                 raise RuntimeError('Login não autorizado.')
@@ -258,8 +275,6 @@ def salvar_orcamento():
     db.session.flush()
 
     itens = request.form.getlist('item_json')
-    # Optional structured items submitted by the front-end.
-    import json
     for raw in itens:
         try:
             item = json.loads(raw)
@@ -319,6 +334,8 @@ def excluir_chapa(id):
 @login_required
 def excluir_ferragem(id):
     item = db.get_or_404(Ferragem, id); db.session.delete(item); db.session.commit(); return redirect('/materiais')
+
+# --- FILTROS TEMPLATE FLASK ---
 
 @app.template_filter('brl')
 def brl(value):
