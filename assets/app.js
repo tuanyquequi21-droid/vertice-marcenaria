@@ -140,7 +140,7 @@ function quoteRow(x){
 
 function empty(a,b){return `<div class="empty"><strong>${a}</strong><span>${b}</span></div>`}
 
-// ==================== CLIENTES COM EXCLUSÃO ====================
+// ==================== CLIENTES ====================
 async function renderClientes(c){
   const data = await get('clientes', {order:{col:'criado_em'}});
   c.innerHTML = `
@@ -270,7 +270,6 @@ async function renderMateriais(c){
   ]);
   const cfg = Object.fromEntries(co.map(x=>[x.chave,x.valor]));
 
-  // Remover opção antiga de parafuso un.
   delete cfg.parafusos_un;
 
   c.innerHTML = `
@@ -599,6 +598,9 @@ async function renderOrcamento(c, editId = null){
             <label>Projeto *
               <input id="qProject" value="${esc(existingQuote?.projeto||'')}" required placeholder="Ex.: Cozinha planejada">
             </label>
+            <label>Prazo de Entrega (em dias)
+              <input id="qDeliveryDays" type="number" min="1" value="15" placeholder="Ex.: 15">
+            </label>
             <label>Margem de lucro (%)
               <input id="qMargin" type="number" min="0" max="99" value="${margemCalculada}" step="0.5">
             </label>
@@ -622,7 +624,7 @@ async function renderOrcamento(c, editId = null){
       </div>
 
       <section class="panel">
-        <div class="panel-head"><div><p class="eyebrow">PRODUÇÃO</p><h3>Custos e processos</h3></div></div>
+        <div class="panel-head"><div><p class="eyebrow">PRODUÇÃO</p><h3>Custos e Processos</h3></div></div>
         <div class="form-grid four">
           <label>Cortes<input id="qCuts" type="number" min="0" value="0"></label>
           <label>Fita de Borda - Tipo/Valor / m
@@ -633,8 +635,9 @@ async function renderOrcamento(c, editId = null){
             </select>
           </label>
           <label>Fita de Borda (Metros)<input id="qTape" type="number" min="0" step="0.01" value="0"></label>
-          <label>Dias de trabalho (máx. 8h/dia)<input id="qDays" type="number" min="0" step="0.5" value="0"></label>
-          <label>Entrega (km)<input id="qKm" type="number" min="0" step="0.1" value="0"></label>
+          <label>Dias trabalhados oficina<input id="qDays" type="number" min="0" step="0.5" value="0"></label>
+          <label>Frete / Entrega (km)<input id="qKm" type="number" min="0" step="0.1" value="0"></label>
+          <label>Serviço de Montagem (R$)<input id="qMontagem" type="number" min="0" step="0.01" value="0" placeholder="R$ 0,00"></label>
           <label>Projeto 3D (h)<input id="q3d" type="number" min="0" step="0.5" value="0"></label>
         </div>
       </section>
@@ -664,22 +667,22 @@ async function renderOrcamento(c, editId = null){
       </section>
 
       <section class="panel" style="background:#fafafa;">
-        <p class="eyebrow">DETALHAMENTO DO CÁLCULO</p>
-        <h3>Como chegamos neste valor?</h3>
+        <p class="eyebrow">DETALHAMENTO DO ORÇAMENTO</p>
+        <h3>Composição dos Custos do Orçamento</h3>
         
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; font-size: 0.95rem;">
           <div>• Chapas MDF: <strong id="dMdf">R$ 0,00</strong></div>
-          <div>• Ferragens: <strong id="dFerr">R$ 0,00</strong></div>
-          <div>• Insumos & Serra: <strong id="dIns">R$ 0,00</strong></div>
-          <div>• Custos Fixos (Energia/Máq.): <strong id="dFixed">R$ 0,00</strong></div>
-          <div>• Mão de Obra (Dia = 8h): <strong id="dMo">R$ 0,00</strong></div>
-          <div>• Logística & 3D: <strong id="dLog">R$ 0,00</strong></div>
+          <div>• Ferragens (Dobradiças, Corrediças...): <strong id="dFerr">R$ 0,00</strong></div>
+          <div>• Materiais Diversos (Cola, Serra, Parafusos...): <strong id="dIns">R$ 0,00</strong></div>
+          <div>• Mão de Obra (Oficina): <strong id="dMo">R$ 0,00</strong></div>
+          <div>• Serviço de Montagem: <strong id="dMontagem">R$ 0,00</strong></div>
+          <div>• Frete / Entrega: <strong id="dFrete">R$ 0,00</strong></div>
         </div>
 
         <div class="quote-result" id="quoteResult">
-          <div><span>Custo Total de Produção</span><strong id="rCost">${money(existingQuote?.custo_producao||0)}</strong></div>
+          <div><span>Custo Total do Projeto</span><strong id="rCost">${money(existingQuote?.custo_producao||0)}</strong></div>
           <div><span>Lucro (${margemCalculada}%)</span><strong id="rProfit">${money(existingQuote?.valor_lucro||0)}</strong></div>
-          <div class="highlight"><span>Preço Final de Venda</span><strong id="rPrice">${money(existingQuote?.preco_final||0)}</strong></div>
+          <div class="highlight"><span>Preço Final para o Cliente</span><strong id="rPrice">${money(existingQuote?.preco_final||0)}</strong></div>
         </div>
       </section>
 
@@ -712,39 +715,43 @@ async function renderOrcamento(c, editId = null){
     const days = num($('#qDays').value);
     const cuts = num($('#qCuts').value);
     const km = num($('#qKm').value);
+    const montagem = num($('#qMontagem').value);
     const h3d = num($('#q3d').value);
 
-    // Custo de parafusos baseado apenas na caixa
+    // Materiais Diversos (Cola, Parafusos, Serra, Borda, Custos Fixos Máquina/Energia)
     const custoCaixaParafuso = num(cfg.caixa_parafuso_preco || 15.00); 
     const parafusosEstimados = mdfQty * 20; 
     const custoParafusos = (parafusosEstimados / 100) * custoCaixaParafuso; 
 
-    const ins = custoParafusos + (tapeMeters * 10 * num(cfg.cola_g)) + (tapeMeters * tapeUnitPrice);
-    const tool = cuts * num(cfg.desgaste_serra_corte);
+    const insumosBordaCola = custoParafusos + (tapeMeters * 10 * num(cfg.cola_g)) + (tapeMeters * tapeUnitPrice);
+    const desgasteSerra = cuts * num(cfg.desgaste_serra_corte);
+    const custosFixosEnergia = days * 8 * (num(cfg.luz_hora) + num(cfg.agua_hora) + num(cfg.maquina_depreciacao_hora));
     
-    // Cálculo fixo limitado estritamente a 8h por dia de trabalho
-    const fixed = days * 8 * (num(cfg.luz_hora) + num(cfg.agua_hora) + num(cfg.maquina_depreciacao_hora));
-    const mo = days * num(cfg.dia_trabalho);
-    const log = (km * num(cfg.gasolina_km)) + (h3d * num(cfg.custo_hora_3d));
+    // Total Materiais Diversos / Consumíveis
+    const materiaisDiversos = insumosBordaCola + desgasteSerra + custosFixosEnergia;
 
-    const cost = mdfTotal + ferr + ins + tool + fixed + mo + log;
+    const maoDeObra = days * num(cfg.dia_trabalho);
+    const frete = km * num(cfg.gasolina_km);
+    const projeto3D = h3d * num(cfg.custo_hora_3d);
+
+    const cost = mdfTotal + ferr + materiaisDiversos + maoDeObra + montagem + frete + projeto3D;
     const margin = Math.min(num($('#qMargin').value)/100, .99);
     const price = margin === 1 ? cost : cost / (1 - margin);
     const profit = price - cost;
-    const reinv = mdfTotal + ferr + ins;
+    const reinv = mdfTotal + ferr + materiaisDiversos;
 
     $('#dMdf').textContent = money(mdfTotal);
     $('#dFerr').textContent = money(ferr);
-    $('#dIns').textContent = money(ins + tool);
-    $('#dFixed').textContent = money(fixed);
-    $('#dMo').textContent = money(mo);
-    $('#dLog').textContent = money(log);
+    $('#dIns').textContent = money(materiaisDiversos);
+    $('#dMo').textContent = money(maoDeObra);
+    $('#dMontagem').textContent = money(montagem);
+    $('#dFrete').textContent = money(frete);
 
     $('#rCost').textContent = money(cost);
     $('#rProfit').textContent = money(profit);
     $('#rPrice').textContent = money(price);
 
-    return {cost, price, profit, reinv, items, mdfTotal, mdfQty, tapeMeters, days, cuts, km, h3d, ferr, ins, tool, fixed, mo, log};
+    return {cost, price, profit, reinv, items, mdfTotal, mdfQty, ferr, materiaisDiversos, maoDeObra, montagem, frete, prazoEntrega: $('#qDeliveryDays').value};
   };
 
   $('#calcQuote').onclick = calculate;
@@ -764,7 +771,7 @@ async function renderOrcamento(c, editId = null){
       preco_final: x.price,
       reinvestimento_materiais: x.reinv,
       status: existingQuote ? existingQuote.status : 'Pendente',
-      observacoes: $('#qObs').value
+      observacoes: `[Prazo de Entrega: ${x.prazoEntrega} dias]\n` + $('#qObs').value
     };
 
     let data, error;
@@ -779,9 +786,12 @@ async function renderOrcamento(c, editId = null){
     if(editId) await sb.from('orcamento_itens').delete().eq('orcamento_id', editId);
 
     const items = [
+      {categoria:'MDF', descricao:$('#qMdf').selectedOptions[0]?.textContent || 'Chapas MDF', quantidade: x.mdfQty, custo_unitario: x.mdfTotal / Math.max(x.mdfQty,1), custo_total: x.mdfTotal},
       ...x.items,
-      {categoria:'MDF', descricao:$('#qMdf').selectedOptions[0]?.textContent || 'MDF', quantidade: x.mdfQty, custo_unitario: x.mdfTotal / Math.max(x.mdfQty,1), custo_total: x.mdfTotal},
-      {categoria:'Resumo', descricao:'Custos operacionais e Insumos', quantidade:1, custo_unitario: x.cost - x.mdfTotal - x.ferr, custo_total: x.cost - x.mdfTotal - x.ferr}
+      {categoria:'Materiais Diversos', descricao:'Cola, Fita, Parafusos e Insumos', quantidade:1, custo_unitario: x.materiaisDiversos, custo_total: x.materiaisDiversos},
+      {categoria:'Mão de Obra', descricao:'Mão de obra de marcenaria', quantidade:1, custo_unitario: x.maoDeObra, custo_total: x.maoDeObra},
+      {categoria:'Montagem', descricao:'Serviço de montagem local', quantidade:1, custo_unitario: x.montagem, custo_total: x.montagem},
+      {categoria:'Frete', descricao:'Transporte e Entrega', quantidade:1, custo_unitario: x.frete, custo_total: x.frete}
     ].filter(i=>i.custo_total > 0);
 
     if(items.length) {
@@ -818,7 +828,6 @@ async function generatePDF(id){
   if(q.clientes?.endereco) doc.text(`Endereço: ${q.clientes.endereco}`, 14, 70);
 
   const tableBody = (q.orcamento_itens || [])
-    .filter(item => item.categoria !== 'Resumo')
     .map(i => [i.categoria, i.descricao, i.quantidade, money(i.custo_unitario), money(i.custo_total)]);
 
   doc.autoTable({
@@ -831,7 +840,7 @@ async function generatePDF(id){
 
   if(q.observacoes) {
     doc.setFontSize(11);
-    doc.text("Observações e Avisos:", 14, finalY);
+    doc.text("Observações e Informações:", 14, finalY);
     doc.setFontSize(9);
     doc.text(q.observacoes, 14, finalY + 6);
     finalY += 20;
