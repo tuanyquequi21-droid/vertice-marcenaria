@@ -172,7 +172,7 @@ async function renderClientes(c){
 }
 
 window.editClient = async function(id){
-  const [client] = await sb.from('clientes').select('*').eq('id', id);
+  const { data: client } = await sb.from('clientes').select('*').eq('id', id).single();
   if(client) clientModal(client);
 };
 
@@ -196,7 +196,7 @@ function clientModal(data = null){
 
   $('#cCPF').oninput = e => e.target.value = formatCPF(e.target.value);
   $('#cPhone').oninput = e => e.target.value = formatPhone(e.target.value);
-  $('#cCEP').ononchange = e => fetchCEP(e.target.value, $('#cAddress'));
+  $('#cCEP').onchange = e => fetchCEP(e.target.value, $('#cAddress'));
   $('#cCEP').onkeyup = e => fetchCEP(e.target.value, $('#cAddress'));
 
   $('#clientForm').onsubmit = async e => {
@@ -217,11 +217,10 @@ function clientModal(data = null){
 
 // ==================== MATERIAIS (CADASTRAR E EDITAR) ====================
 async function renderMateriais(c){
-  const [mf, fe, co, fitas] = await Promise.all([
+  const [mf, fe, co] = await Promise.all([
     get('chapas_mdf', {order:{col:'criado_em'}}),
     get('ferragens', {order:{col:'criado_em'}}),
-    get('config_global'),
-    get('fitas_borda', {order:{col:'nome_modelo'}}).catch(()=>[]) // Fallback caso tabela exista ou não
+    get('config_global')
   ]);
   const cfg = Object.fromEntries(co.map(x=>[x.chave,x.valor]));
 
@@ -290,7 +289,7 @@ const labels = {
 
 window.editMaterial = async function(kind, id){
   const table = kind === 'MDF' ? 'chapas_mdf' : 'ferragens';
-  const [item] = await sb.from(table).select('*').eq('id', id);
+  const { data: item } = await sb.from(table).select('*').eq('id', id).single();
   if(item) materialModal(kind, item);
 };
 
@@ -356,10 +355,10 @@ async function renderHistorico(c){
         <button class="btn primary" data-page="orcamento">+ Novo orçamento</button>
       </div>
       
-      <!-- FILTRO DE PESQUISA (Item 9) -->
+      <!-- FILTRO DE PESQUISA -->
       <div class="form-grid" style="margin-bottom:1.5rem;">
         <label>Buscar orçamento
-          <input id="searchQuote" placeholder="Pesquisar por Nome do Cliente, CPF, Projeto ou Data (AAAA-MM-DD)">
+          <input id="searchQuote" placeholder="Pesquisar por Nome do Cliente, CPF, Projeto ou Data (DD/MM/AAAA)">
         </label>
       </div>
 
@@ -375,7 +374,6 @@ async function renderHistorico(c){
       </div>
     </section>`;
 
-  // Ação de Pesquisa em Tempo Real
   $('#searchQuote').oninput = e => {
     const term = e.target.value.toLowerCase().trim();
     const filtered = o.filter(x => {
@@ -430,7 +428,7 @@ function bindTableEvents(c, originalData){
   });
 }
 
-// ==================== EDITAR E SALVAR ORÇAMENTO (COM PDF) ====================
+// ==================== CRIAR/EDITAR ORÇAMENTO ====================
 async function renderOrcamento(c, editId = null){
   editingQuoteId = editId;
   const [clients, mf, fe, co] = await Promise.all([
@@ -442,9 +440,33 @@ async function renderOrcamento(c, editId = null){
   const cfg = Object.fromEntries(co.map(x=>[x.chave,x.valor]));
 
   let existingQuote = null;
+  let itemsMap = {};
+  let mdfItem = null;
+
   if(editId) {
-    const [q] = await sb.from('orcamentos').select('*, orcamento_itens(*)').eq('id', editId);
-    existingQuote = q;
+    const { data: q, error } = await sb.from('orcamentos').select('*, orcamento_itens(*)').eq('id', editId).single();
+    if(!error && q) {
+      existingQuote = q;
+      if(q.orcamento_itens) {
+        q.orcamento_itens.forEach(item => {
+          if(item.categoria === 'MDF') mdfItem = item;
+          else if(item.categoria === 'Ferragem') itemsMap[item.descricao] = item;
+        });
+      }
+    }
+  }
+
+  // Identifica MDF selecionado se for edição
+  let selectedMdfId = "";
+  if(mdfItem) {
+    const foundMdf = mf.find(m => mdfItem.descricao.includes(m.nome_modelo));
+    if(foundMdf) selectedMdfId = foundMdf.id;
+  }
+
+  // Margem pré-calculada para exibição em edição
+  let margemCalculada = 30;
+  if(existingQuote && existingQuote.custo_producao > 0) {
+    margemCalculada = Math.round((1 - (existingQuote.custo_producao / existingQuote.preco_final)) * 100 * 10) / 10;
   }
 
   c.innerHTML = `
@@ -467,7 +489,7 @@ async function renderOrcamento(c, editId = null){
               <input id="qProject" value="${esc(existingQuote?.projeto||'')}" required placeholder="Ex.: Cozinha planejada">
             </label>
             <label>Margem de lucro (%)
-              <input id="qMargin" type="number" min="0" max="99" value="30" step="0.5">
+              <input id="qMargin" type="number" min="0" max="99" value="${margemCalculada}" step="0.5">
             </label>
           </div>
         </section>
@@ -478,11 +500,11 @@ async function renderOrcamento(c, editId = null){
             <label>Chapa
               <select id="qMdf">
                 <option value="">Selecione</option>
-                ${mf.map(x=>`<option value="${x.id}" data-price="${x.preco_custo}">${esc(x.nome_modelo)} — ${money(x.preco_custo)}</option>`).join('')}
+                ${mf.map(x=>`<option value="${x.id}" data-price="${x.preco_custo}" ${selectedMdfId === x.id ? 'selected':''}>${esc(x.nome_modelo)} — ${money(x.preco_custo)}</option>`).join('')}
               </select>
             </label>
             <label>Quantidade de chapas
-              <input id="qMdfQty" type="number" min="0" step="0.01" value="0">
+              <input id="qMdfQty" type="number" min="0" step="0.01" value="${mdfItem?.quantidade || 0}">
             </label>
           </div>
         </section>
@@ -513,25 +535,27 @@ async function renderOrcamento(c, editId = null){
             <div class="hardware">
               <select class="f-select" data-type="${tipo}">
                 <option value="">${tipo}</option>
-                ${fe.filter(x=>x.tipo===tipo).map(x=>`<option value="${x.id}" data-price="${x.preco_custo}">${esc(x.nome_modelo)} — ${money(x.preco_custo)}</option>`).join('')}
+                ${fe.filter(x=>x.tipo===tipo).map(x=>{
+                  const matched = itemsMap[x.nome_modelo];
+                  return `<option value="${x.id}" data-price="${x.preco_custo}" ${matched ? 'selected':''}>${esc(x.nome_modelo)} — ${money(x.preco_custo)}</option>`;
+                }).join('')}
               </select>
-              <input class="f-qty" type="number" min="0" value="0" placeholder="Qtd.">
+              <input class="f-qty" type="number" min="0" value="${Object.values(itemsMap).find(i=>fe.find(f=>f.id===i.id || f.nome_modelo===i.descricao && f.tipo===tipo))?.quantidade || 0}" placeholder="Qtd.">
             </div>
           `).join('')}
         </div>
       </section>
 
-      <!-- CAMPO DE OBSERVAÇÕES ADICIONAIS DO CLIENTE (Item 7) -->
       <section class="panel">
         <p class="eyebrow">OBSERVAÇÕES DO ORÇAMENTO</p>
         <h3>Informações adicionais para o cliente</h3>
-        <textarea id="qObs" rows="3" style="width:100%; border-radius:8px; border:1px solid #ccc; padding:8px;" placeholder="Ex.: O valor das chapas sofreu alteração de R$ 300,00 para R$ 350,00 referente ao último orçamento."></textarea>
+        <textarea id="qObs" rows="3" style="width:100%; border-radius:8px; border:1px solid #ccc; padding:8px;" placeholder="Ex.: O valor das chapas sofreu alteração de R$ 300,00 para R$ 350,00 referente ao último orçamento.">${esc(existingQuote?.observacoes||'')}</textarea>
       </section>
 
       <div class="quote-result" id="quoteResult">
-        <div><span>Custo total</span><strong id="rCost">R$ 0,00</strong></div>
-        <div><span>Lucro</span><strong id="rProfit">R$ 0,00</strong></div>
-        <div class="highlight"><span>Preço de venda</span><strong id="rPrice">R$ 0,00</strong></div>
+        <div><span>Custo total</span><strong id="rCost">${money(existingQuote?.custo_producao||0)}</strong></div>
+        <div><span>Lucro</span><strong id="rProfit">${money(existingQuote?.valor_lucro||0)}</strong></div>
+        <div class="highlight"><span>Preço de venda</span><strong id="rPrice">${money(existingQuote?.preco_final||0)}</strong></div>
       </div>
 
       <div class="form-actions">
@@ -565,10 +589,9 @@ async function renderOrcamento(c, editId = null){
     const km = num($('#qKm').value);
     const h3d = num($('#q3d').value);
 
-    // Parafusos: cálculo em caixa/unidades (Insumos internos de produção)
     const custoCaixaParafuso = num(cfg.caixa_parafuso_preco || 15.00); 
     const parafusosEstimados = mdfQty * 20; 
-    const custoParafusos = (parafusosEstimados / 100) * custoCaixaParafuso; // Proporção da caixa
+    const custoParafusos = (parafusosEstimados / 100) * custoCaixaParafuso; 
 
     const ins = custoParafusos + (tapeMeters * 10 * num(cfg.cola_g)) + (tapeMeters * tapeUnitPrice);
     const tool = cuts * num(cfg.desgaste_serra_corte);
@@ -579,7 +602,7 @@ async function renderOrcamento(c, editId = null){
 
     const cost = mdfTotal + ferr + ins + tool + fixed + mo + log + p3d;
     const margin = Math.min(num($('#qMargin').value)/100, .99);
-    const price = cost / (1 - margin);
+    const price = margin === 1 ? cost : cost / (1 - margin);
     const profit = price - cost;
     const reinv = mdfTotal + ferr + ins;
 
@@ -619,7 +642,6 @@ async function renderOrcamento(c, editId = null){
 
     if(error) return toast(error.message, 'error');
 
-    // Atualização de itens
     if(editId) await sb.from('orcamento_itens').delete().eq('orcamento_id', editId);
 
     const items = [
@@ -637,24 +659,22 @@ async function renderOrcamento(c, editId = null){
   };
 }
 
-// ==================== GERADOR DE PDF (Item 6) ====================
+// ==================== GERADOR DE PDF ====================
 window.generatePDF = async function(id){
   const { jsPDF } = window.jspdf;
-  const [q] = await sb.from('orcamentos').select('*, clientes(*), orcamento_itens(*)').eq('id', id);
+  const { data: q, error } = await sb.from('orcamentos').select('*, clientes(*), orcamento_itens(*)').eq('id', id).single();
 
-  if(!q) return toast('Erro ao carregar dados para o PDF', 'error');
+  if(error || !q) return toast('Erro ao carregar dados para o PDF', 'error');
 
   const doc = new jsPDF();
   const clienteNome = q.clientes?.nome || q.cliente_nome_avulso || 'Cliente';
 
-  // Cabeçalho
   doc.setFontSize(18);
   doc.text("ORÇAMENTO DE MARCENARIA", 14, 20);
   doc.setFontSize(10);
   doc.text(`Orçamento #: ${q.id}`, 14, 28);
   doc.text(`Data: ${new Date(q.data_criacao).toLocaleDateString('pt-BR')}`, 14, 34);
 
-  // Dados do Cliente
   doc.setFontSize(12);
   doc.text("Dados do Cliente", 14, 45);
   doc.setFontSize(10);
@@ -663,7 +683,6 @@ window.generatePDF = async function(id){
   if(q.clientes?.telefone) doc.text(`Telefone: ${q.clientes.telefone}`, 14, 64);
   if(q.clientes?.endereco) doc.text(`Endereço: ${q.clientes.endereco}`, 14, 70);
 
-  // Tabela de Itens (Sem expor o custo interno individual de parafusos)
   const tableBody = (q.orcamento_itens || [])
     .filter(item => item.categoria !== 'Resumo')
     .map(i => [i.categoria, i.descricao, i.quantidade, money(i.custo_unitario), money(i.custo_total)]);
@@ -676,7 +695,6 @@ window.generatePDF = async function(id){
 
   let finalY = doc.lastAutoTable.finalY + 10;
 
-  // Observações (Item 7)
   if(q.observacoes) {
     doc.setFontSize(11);
     doc.text("Observações e Avisos:", 14, finalY);
@@ -685,11 +703,9 @@ window.generatePDF = async function(id){
     finalY += 20;
   }
 
-  // Total Final
   doc.setFontSize(14);
   doc.text(`VALOR TOTAL: ${money(q.preco_final)}`, 14, finalY + 10);
 
-  // Salva o PDF
   doc.save(`Orcamento_${q.id}_${clienteNome.replace(/\s+/g, '_')}.pdf`);
   toast('PDF Gerado com sucesso!');
 };
