@@ -534,7 +534,7 @@ async function renderOrcamento(c, editId = null){
   const cfg = Object.fromEntries(co.map(x=>[x.chave,x.valor]));
 
   let existingQuote = null;
-  let itemsMap = {};
+  let savedHardwareItems = [];
   let mdfItem = null;
 
   if(editId) {
@@ -544,7 +544,7 @@ async function renderOrcamento(c, editId = null){
       if(q.orcamento_itens) {
         q.orcamento_itens.forEach(item => {
           if(item.categoria === 'MDF') mdfItem = item;
-          else if(item.categoria === 'Ferragem') itemsMap[item.descricao] = item;
+          else if(item.categoria === 'Ferragem') savedHardwareItems.push(item);
         });
       }
     }
@@ -562,6 +562,20 @@ async function renderOrcamento(c, editId = null){
   }
 
   let defaultObs = existingQuote?.observacoes || '';
+
+  // Função auxiliar para renderizar a linha de um componente/ferragem
+  const buildHardwareRowHtml = (selectedId = '', qty = 0) => {
+    return `
+      <div class="hardware-row" style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+        <select class="f-select" style="flex:1;">
+          <option value="">Selecione o componente...</option>
+          ${fe.map(x=>`<option value="${x.id}" data-price="${x.preco_custo}" ${selectedId === x.id ? 'selected':''}>${esc(x.tipo)} - ${esc(x.nome_modelo)} — ${money(x.preco_custo)}</option>`).join('')}
+        </select>
+        <input class="f-qty" type="number" min="0" value="${qty}" placeholder="Qtd." style="width:100px;">
+        <button type="button" class="icon-btn remove-hw-btn" title="Remover componente" style="color:#d9534f; font-weight:bold; font-size:18px;">×</button>
+      </div>
+    `;
+  };
 
   c.innerHTML = `
     <form id="quoteForm">
@@ -626,21 +640,12 @@ async function renderOrcamento(c, editId = null){
       </section>
 
       <section class="panel">
-        <div class="panel-head"><div><p class="eyebrow">FERRAGENS</p><h3>Componentes Internos</h3></div></div>
-        <div id="hardwareRows">
-          ${['Dobradiça','Corrediça','Puxador','Pistão','Outros'].map((tipo)=>`
-            <div class="hardware">
-              <select class="f-select" data-type="${tipo}">
-                <option value="">${tipo}</option>
-                ${fe.filter(x=>x.tipo===tipo).map(x=>{
-                  const matched = itemsMap[x.nome_modelo];
-                  return `<option value="${x.id}" data-price="${x.preco_custo}" ${matched ? 'selected':''}>${esc(x.nome_modelo)} — ${money(x.preco_custo)}</option>`;
-                }).join('')}
-              </select>
-              <input class="f-qty" type="number" min="0" value="${Object.values(itemsMap).find(i=>fe.find(f=>f.id===i.id || f.nome_modelo===i.descricao && f.tipo===tipo))?.quantidade || 0}" placeholder="Qtd.">
-            </div>
-          `).join('')}
+        <div class="panel-head">
+          <div><p class="eyebrow">FERRAGENS & COMPONENTES</p><h3>Componentes Internos</h3></div>
+          <button type="button" class="btn primary" id="addHardwareBtn">+ Adicionar Componente</button>
         </div>
+        <div id="hardwareListContainer" style="margin-top: 1rem;">
+          </div>
       </section>
 
       <section class="panel">
@@ -675,6 +680,32 @@ async function renderOrcamento(c, editId = null){
       </div>
     </form>`;
 
+  const hwContainer = $('#hardwareListContainer');
+
+  // Adiciona item dinamicamente
+  const addHardwareRow = (selectedId = '', qty = 0) => {
+    const div = document.createElement('div');
+    div.innerHTML = buildHardwareRowHtml(selectedId, qty);
+    const rowEl = div.firstElementChild;
+    hwContainer.appendChild(rowEl);
+
+    rowEl.querySelector('.remove-hw-btn').onclick = () => {
+      rowEl.remove();
+    };
+  };
+
+  // Carrega itens existentes ou adiciona 1 linha vazia por padrão
+  if(savedHardwareItems.length > 0) {
+    savedHardwareItems.forEach(item => {
+      const foundFe = fe.find(f => f.nome_modelo === item.descricao);
+      addHardwareRow(foundFe ? foundFe.id : '', item.quantidade || 0);
+    });
+  } else {
+    addHardwareRow();
+  }
+
+  $('#addHardwareBtn').onclick = () => addHardwareRow();
+
   const calculate = () => {
     const mdfOpt = $('#qMdf').selectedOptions[0];
     const mdfPrice = num(mdfOpt?.dataset.price);
@@ -682,7 +713,7 @@ async function renderOrcamento(c, editId = null){
     const mdfTotal = mdfPrice * mdfQty;
 
     let ferragensTotal = 0;
-    document.querySelectorAll('.hardware').forEach(r => {
+    document.querySelectorAll('.hardware-row').forEach(r => {
       const o = r.querySelector('.f-select').selectedOptions[0];
       const q = num(r.querySelector('.f-qty').value);
       if(o?.value && q){
@@ -767,10 +798,30 @@ async function renderOrcamento(c, editId = null){
 
     if(editId) await sb.from('orcamento_itens').delete().eq('orcamento_id', editId);
 
+    // Salva os componentes selecionados dinamicamente
+    const itemsHardwareToSave = [];
+    document.querySelectorAll('.hardware-row').forEach(r => {
+      const o = r.querySelector('.f-select').selectedOptions[0];
+      const q = num(r.querySelector('.f-qty').value);
+      if(o?.value && q > 0) {
+        const found = fe.find(item => item.id === o.value);
+        if(found) {
+          itemsHardwareToSave.push({
+            categoria: 'Ferragem',
+            descricao: found.nome_modelo,
+            quantidade: q,
+            custo_unitario: num(found.preco_custo),
+            custo_total: num(found.preco_custo) * q
+          });
+        }
+      }
+    });
+
     // Itens unificados para o PDF
     const items = [
       {categoria:'MDF', descricao:$('#qMdf').selectedOptions[0]?.textContent || 'Chapas MDF', quantidade: x.mdfQty, custo_unitario: x.mdfTotal / Math.max(x.mdfQty,1), custo_total: x.mdfTotal},
-      {categoria:'Materiais Diversos', descricao:'Ferragens, Fita, Cola, Parafusos e Insumos', quantidade:1, custo_unitario: x.materiaisDiversos, custo_total: x.materiaisDiversos},
+      ...itemsHardwareToSave,
+      {categoria:'Materiais Diversos', descricao:'Fita, Cola, Parafusos e Insumos', quantidade:1, custo_unitario: x.materiaisDiversos - itemsHardwareToSave.reduce((s,i)=>s+i.custo_total,0), custo_total: x.materiaisDiversos - itemsHardwareToSave.reduce((s,i)=>s+i.custo_total,0)},
       {categoria:'Mão de Obra', descricao:'Serviço de Marcenaria', quantidade:1, custo_unitario: x.maoDeObra, custo_total: x.maoDeObra},
       {categoria:'Montagem', descricao:'Serviço de Montagem no local', quantidade:1, custo_unitario: x.montagem, custo_total: x.montagem},
       {categoria:'Frete', descricao:'Frete / Transporte terceirizado', quantidade:1, custo_unitario: x.frete, custo_total: x.frete}
