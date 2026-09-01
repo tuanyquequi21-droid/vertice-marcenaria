@@ -1,6 +1,6 @@
 const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
   auth: {
-    jwtSkew: 60 // tolera até 60 segundos de diferença no relógio do usuário
+    jwtSkew: 60
   }
 });
 const $ = s => document.querySelector(s);
@@ -8,11 +8,10 @@ const money = n => Number(n||0).toLocaleString('pt-BR',{style:'currency',currenc
 const num = n => Number(n||0);
 const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 
-// Formatação do ID para iniciar a partir de 100 sem '#'
 const formatQuoteId = id => Number(id || 0) + 99;
 
-function toast(msg,type='success'){const t=$('#toast');t.textContent=msg;t.className=`toast show ${type}`;setTimeout(()=>t.className='toast',3000)}
-function showError(msg){$('#loginError').textContent=msg||''}
+function toast(msg,type='success'){const t=$('#toast');if(t){t.textContent=msg;t.className=`toast show ${type}`;setTimeout(()=>t.className='toast',3000)}}
+function showError(msg){const e=$('#loginError');if(e)e.textContent=msg||''}
 
 let editingQuoteId = null;
 
@@ -75,7 +74,6 @@ async function get(table, opts={}){
   return data || [];
 }
 
-// ==================== MÁSCARAS E BUSCA CEP ====================
 function formatCPF(v){
   return v.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2').substring(0,14);
 }
@@ -95,6 +93,118 @@ async function fetchCEP(cep, elAddress, elCity){
         if(elCity) elCity.value = `${data.localidade} / ${data.uf}`;
       }
     } catch(err){ console.error("Erro ao buscar CEP", err); }
+  }
+}
+
+// ==================== EMISSÃO DE PDF / IMPRESSÃO ====================
+function generatePDFFromData(data) {
+  const win = window.open('', '_blank');
+  const itemsHtml = (data.items || []).map(i => `
+    <tr>
+      <td style="padding: 8px; border-bottom: 1px solid #ddd;">${esc(i.descricao)}</td>
+      <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${i.quantidade}</td>
+    </tr>
+  `).join('');
+
+  win.document.write(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8">
+      <title>Orçamento - ${esc(data.projeto)}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 30px; color: #333; }
+        .header { text-align: center; border-bottom: 2px solid #222; padding-bottom: 15px; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
+        .header p { margin: 5px 0 0; color: #666; }
+        .info-grid { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .info-box { width: 48%; border: 1px solid #e0e0e0; padding: 12px; border-radius: 6px; }
+        .info-box h4 { margin: 0 0 8px; font-size: 14px; color: #555; text-transform: uppercase; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { background: #f4f4f4; text-align: left; padding: 8px; border-bottom: 2px solid #ccc; font-size: 13px; }
+        .total-box { text-align: right; margin-top: 25px; padding: 15px; background: #f9f9f9; border-radius: 6px; }
+        .total-box strong { font-size: 20px; color: #111; }
+        .obs-box { margin-top: 20px; padding: 12px; border: 1px dashed #ccc; border-radius: 6px; font-size: 13px; }
+        @media print {
+          body { margin: 0; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>Proposta de Orçamento</h1>
+        <p>Data: ${new Date().toLocaleDateString('pt-BR')}</p>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-box">
+          <h4>Dados do Cliente</h4>
+          <p><strong>Nome:</strong> ${esc(data.clienteNome)}</p>
+        </div>
+        <div class="info-box">
+          <h4>Dados do Projeto</h4>
+          <p><strong>Projeto:</strong> ${esc(data.projeto)}</p>
+          <p><strong>Prazo estimado:</strong> ${data.prazoEntrega} dias úteis</p>
+        </div>
+      </div>
+
+      <h4>Itens e Especificações</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Descrição do Item / Material</th>
+            <th style="text-align: center;">Qtd.</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml || '<tr><td colspan="2" style="padding:8px;">Especificações conforme projeto negociado.</td></tr>'}
+        </tbody>
+      </table>
+
+      <div class="total-box">
+        <span>Valor Total da Proposta:</span><br>
+        <strong>${money(data.precoFinal)}</strong>
+      </div>
+
+      ${data.observacoes ? `
+        <div class="obs-box">
+          <strong>Observações e Condições:</strong><br>
+          ${esc(data.observacoes).replace(/\n/g, '<br>')}
+        </div>
+      ` : ''}
+
+      <script>
+        window.onload = function() {
+          window.print();
+        };
+      </script>
+    </body>
+    </html>
+  `);
+  win.document.close();
+}
+
+async function generatePDF(id) {
+  try {
+    const { data: q, error } = await sb.from('orcamentos').select('*, clientes(*), orcamento_itens(*)').eq('id', id).single();
+    if(error || !q) return toast('Erro ao carregar orçamento para PDF.', 'error');
+
+    const items = (q.orcamento_itens || []).map(i => ({
+      descricao: i.descricao,
+      quantidade: i.quantidade
+    }));
+
+    generatePDFFromData({
+      clienteNome: q.clientes?.nome || q.cliente_nome_avulso || 'Cliente Geral',
+      projeto: q.projeto,
+      prazoEntrega: 15,
+      precoFinal: q.preco_final,
+      observacoes: q.observacoes,
+      items: items
+    });
+  } catch(err) {
+    console.error(err);
+    toast('Não foi possível gerar o PDF.', 'error');
   }
 }
 
@@ -141,7 +251,7 @@ function quoteRow(x){
       </div>
       <div class="row-right">
         <strong>${money(x.preco_final)}</strong>
-        <span class="badge ${x.status.toLowerCase()}">${esc(x.status)}</span>
+        <span class="badge ${(x.status||'').toLowerCase()}">${esc(x.status)}</span>
       </div>
     </div>`;
 }
@@ -678,7 +788,8 @@ async function renderOrcamento(c, editId = null){
       <div class="form-actions" style="margin-top:1.5rem;">
         <button type="button" class="btn ghost" id="clearQuote">Limpar</button>
         <button type="button" class="btn primary" id="calcQuote">Calcular orçamento</button>
-        <button type="submit" class="btn dark">${editId ? 'Atualizar orçamento' : 'Salvar orçamento'}</button>
+        <button type="button" class="btn dark" id="previewPdfBtn">Pré-visualizar PDF</button>
+        <button type="submit" class="btn primary">${editId ? 'Atualizar orçamento' : 'Salvar orçamento'}</button>
       </div>
     </form>`;
 
@@ -760,6 +871,40 @@ async function renderOrcamento(c, editId = null){
 
   $('#calcQuote').onclick = () => calculate();
 
+  // Emite o PDF sem salvar o orçamento
+  $('#previewPdfBtn').onclick = () => {
+    const calc = calculate();
+    const clientSelect = $('#qClient');
+    const selectedClientOpt = clientSelect.selectedOptions[0];
+    const clienteNome = selectedClientOpt && selectedClientOpt.value 
+      ? selectedClientOpt.textContent 
+      : ($('#qClientName').value || 'Cliente Não Identificado');
+
+    const items = [];
+    const mdfOpt = $('#qMdf').selectedOptions[0];
+    const mdfQty = num($('#qMdfQty').value);
+    if(mdfOpt?.value && mdfQty > 0) {
+      items.push({ descricao: mdfOpt.textContent, quantidade: mdfQty });
+    }
+
+    document.querySelectorAll('.hardware-row').forEach(r => {
+      const o = r.querySelector('.f-select').selectedOptions[0];
+      const q = num(r.querySelector('.f-qty').value);
+      if(o?.value && q > 0){
+        items.push({ descricao: o.textContent.split('—')[0].trim(), quantidade: q });
+      }
+    });
+
+    generatePDFFromData({
+      clienteNome: clienteNome,
+      projeto: $('#qProject').value || 'Projeto Sem Título',
+      prazoEntrega: $('#qDeliveryDays').value || 15,
+      precoFinal: calc.precoFinal,
+      observacoes: $('#qObs').value,
+      items: items
+    });
+  };
+
   $('#quoteForm').onsubmit = async e => {
     e.preventDefault();
     const calc = calculate();
@@ -792,7 +937,6 @@ async function renderOrcamento(c, editId = null){
 
     if(error) return toast(error.message, 'error');
 
-    // Atualiza itens do orçamento
     if(editId) {
       await sb.from('orcamento_itens').delete().eq('orcamento_id', editId);
     }
@@ -836,5 +980,4 @@ async function renderOrcamento(c, editId = null){
   };
 }
 
-// Inicializa a verificação de autenticação do sistema
 auth();
