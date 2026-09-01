@@ -1,4 +1,8 @@
-const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
+  auth: {
+    jwtSkew: 60 // tolera até 60 segundos de diferença no relógio do usuário
+  }
+});
 const $ = s => document.querySelector(s);
 const money = n => Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const num = n => Number(n||0);
