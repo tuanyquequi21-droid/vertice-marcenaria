@@ -4,6 +4,9 @@ const money = n => Number(n||0).toLocaleString('pt-BR',{style:'currency',currenc
 const num = n => Number(n||0);
 const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 
+// Formatação do ID para iniciar a partir de 100 sem '#'
+const formatQuoteId = id => Number(id || 0) + 99;
+
 function toast(msg,type='success'){const t=$('#toast');t.textContent=msg;t.className=`toast show ${type}`;setTimeout(()=>t.className='toast',3000)}
 function showError(msg){$('#loginError').textContent=msg||''}
 
@@ -77,14 +80,15 @@ function formatPhone(v){
   if(v.length > 10) return v.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3').substring(0,15);
   return v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3').substring(0,14);
 }
-async function fetchCEP(cep, elAddress){
+async function fetchCEP(cep, elAddress, elCity){
   const clean = cep.replace(/\D/g, '');
   if(clean.length === 8){
     try {
       const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
       const data = await res.json();
-      if(!data.erro && elAddress){
-        elAddress.value = `${data.logradouro}, ${data.bairro} - ${data.localidade}/${data.uf}`;
+      if(!data.erro){
+        if(elAddress) elAddress.value = `${data.logradouro}, ${data.bairro}`;
+        if(elCity) elCity.value = `${data.localidade} / ${data.uf}`;
       }
     } catch(err){ console.error("Erro ao buscar CEP", err); }
   }
@@ -128,7 +132,7 @@ function quoteRow(x){
   return `
     <div class="row">
       <div>
-        <strong>${esc(clienteNome)} — <small>#${x.id} (${esc(x.projeto)})</small></strong>
+        <strong>${esc(clienteNome)} — <small>Orçamento ${formatQuoteId(x.id)} (${esc(x.projeto)})</small></strong>
         <small>${new Date(x.data_criacao).toLocaleDateString('pt-BR')}</small>
       </div>
       <div class="row-right">
@@ -152,13 +156,13 @@ async function renderClientes(c){
 
       <div class="form-grid" style="margin-bottom:1.5rem;">
         <label>Buscar cliente
-          <input id="searchClient" placeholder="Pesquisar por Nome, CPF, Telefone, E-mail ou Endereço">
+          <input id="searchClient" placeholder="Pesquisar por Nome, CPF, Telefone, E-mail, Cidade ou Endereço">
         </label>
       </div>
 
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>E-mail</th><th>Endereço</th><th>Ações</th></tr></thead>
+          <thead><tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>Cidade / UF</th><th>Endereço</th><th>Ações</th></tr></thead>
           <tbody id="clientTableBody">
             ${renderClientRows(data)}
           </tbody>
@@ -174,9 +178,9 @@ async function renderClientes(c){
       const nome = (x.nome || '').toLowerCase();
       const cpf = (x.cpf || '').toLowerCase();
       const tel = (x.telefone || '').toLowerCase();
-      const email = (x.email || '').toLowerCase();
+      const cidade = (x.cidade || '').toLowerCase();
       const end = (x.endereco || '').toLowerCase();
-      return nome.includes(term) || cpf.includes(term) || tel.includes(term) || email.includes(term) || end.includes(term);
+      return nome.includes(term) || cpf.includes(term) || tel.includes(term) || cidade.includes(term) || end.includes(term);
     });
     $('#clientTableBody').innerHTML = renderClientRows(filtered);
     bindClientEvents(c, data);
@@ -191,7 +195,7 @@ function renderClientRows(list){
       <td><strong>${esc(x.nome)}</strong></td>
       <td>${esc(x.cpf || '—')}</td>
       <td>${esc(x.telefone || '—')}</td>
-      <td>${esc(x.email || '—')}</td>
+      <td>${esc(x.cidade || '—')}</td>
       <td>${esc(x.endereco||'')}${x.numero?' nº '+esc(x.numero):''}</td>
       <td>
         <button class="btn ghost btn-sm edit-client-btn" data-id="${x.id}">Editar</button>
@@ -231,6 +235,7 @@ function clientModal(data = null){
       <label>Telefone<input name="telefone" id="cPhone" value="${esc(data?.telefone||'')}"></label>
       <label>E-mail<input name="email" type="email" value="${esc(data?.email||'')}"></label>
       <label>CEP<input name="cep" id="cCEP" value="${esc(data?.cep||'')}"></label>
+      <label>Cidade / UF<input name="cidade" id="cCity" value="${esc(data?.cidade||'')}"></label>
       <label>Endereço<input name="endereco" id="cAddress" value="${esc(data?.endereco||'')}"></label>
       <label>Número<input name="numero" value="${esc(data?.numero||'')}"></label>
       <div class="form-actions">
@@ -242,8 +247,8 @@ function clientModal(data = null){
 
   $('#cCPF').oninput = e => e.target.value = formatCPF(e.target.value);
   $('#cPhone').oninput = e => e.target.value = formatPhone(e.target.value);
-  $('#cCEP').onchange = e => fetchCEP(e.target.value, $('#cAddress'));
-  $('#cCEP').onkeyup = e => fetchCEP(e.target.value, $('#cAddress'));
+  $('#cCEP').onchange = e => fetchCEP(e.target.value, $('#cAddress'), $('#cCity'));
+  $('#cCEP').onkeyup = e => fetchCEP(e.target.value, $('#cAddress'), $('#cCity'));
 
   $('#clientForm').onsubmit = async e => {
     e.preventDefault();
@@ -271,6 +276,7 @@ async function renderMateriais(c){
   const cfg = Object.fromEntries(co.map(x=>[x.chave,x.valor]));
 
   delete cfg.parafusos_un;
+  delete cfg.gasolina_km;
 
   c.innerHTML = `
     <div class="panel" style="margin-bottom: 1.5rem;">
@@ -372,8 +378,7 @@ const labels = {
   caixa_parafuso_preco: 'Caixa de Parafuso (R$ / caixa)',
   cola_g: 'Cola / g (R$)',
   fita_borda_m: 'Fita de Borda Padrão / m (R$)',
-  desgaste_serra_corte: 'Desgaste serra / corte (R$)',
-  gasolina_km: 'Gasolina / km (R$)',
+  desgaste_serra_corte: 'Desgaste da Serra / Projeto (R$)',
   custo_hora_3d: 'Projeto 3D / hora (R$)'
 };
 
@@ -479,7 +484,7 @@ function renderQuoteRows(list){
     return `
       <tr>
         <td><strong>${esc(clienteNome)}</strong> ${x.clientes?.cpf ? `<br><small>CPF: ${esc(x.clientes.cpf)}</small>` : ''}</td>
-        <td>${esc(x.projeto)} <br><small>#${x.id}</small></td>
+        <td>${esc(x.projeto)} <br><small>Orçamento ${formatQuoteId(x.id)}</small></td>
         <td>${new Date(x.data_criacao).toLocaleDateString('pt-BR')}</td>
         <td>${money(x.preco_final)}</td>
         <td>
@@ -531,7 +536,6 @@ async function renderOrcamento(c, editId = null){
   let existingQuote = null;
   let itemsMap = {};
   let mdfItem = null;
-  let detectedChanges = [];
 
   if(editId) {
     const { data: q, error } = await sb.from('orcamentos').select('*, orcamento_itens(*)').eq('id', editId).single();
@@ -539,24 +543,8 @@ async function renderOrcamento(c, editId = null){
       existingQuote = q;
       if(q.orcamento_itens) {
         q.orcamento_itens.forEach(item => {
-          if(item.categoria === 'MDF') {
-            mdfItem = item;
-            const currentMdf = mf.find(m => item.descricao.includes(m.nome_modelo));
-            if(currentMdf && num(currentMdf.preco_custo) !== num(item.custo_unitario)) {
-              const diff = num(currentMdf.preco_custo) - num(item.custo_unitario);
-              const sinal = diff > 0 ? '+' : '';
-              detectedChanges.push(`• MDF "${currentMdf.nome_modelo}": Preço alterado de ${money(item.custo_unitario)} para ${money(currentMdf.preco_custo)} (${sinal}${money(diff)}).`);
-            }
-          }
-          else if(item.categoria === 'Ferragem') {
-            itemsMap[item.descricao] = item;
-            const currentFerr = fe.find(f => item.descricao === f.nome_modelo);
-            if(currentFerr && num(currentFerr.preco_custo) !== num(item.custo_unitario)) {
-              const diff = num(currentFerr.preco_custo) - num(item.custo_unitario);
-              const sinal = diff > 0 ? '+' : '';
-              detectedChanges.push(`• Ferragem "${currentFerr.nome_modelo}": Preço alterado de ${money(item.custo_unitario)} para ${money(currentFerr.preco_custo)} (${sinal}${money(diff)}).`);
-            }
-          }
+          if(item.categoria === 'MDF') mdfItem = item;
+          else if(item.categoria === 'Ferragem') itemsMap[item.descricao] = item;
         });
       }
     }
@@ -574,17 +562,13 @@ async function renderOrcamento(c, editId = null){
   }
 
   let defaultObs = existingQuote?.observacoes || '';
-  if(detectedChanges.length > 0 && !defaultObs.includes('Aviso de alteração de preços')) {
-    const headerObs = `--- Aviso de alteração de preços desde o último orçamento em ${new Date(existingQuote.data_criacao).toLocaleDateString('pt-BR')} ---\n`;
-    defaultObs = (headerObs + detectedChanges.join('\n') + '\n\n' + defaultObs).trim();
-  }
 
   c.innerHTML = `
     <form id="quoteForm">
       <div class="grid-2">
         <section class="panel">
           <p class="eyebrow">PROPOSTA</p>
-          <h3>${editId ? 'Editar Orçamento #' + editId : 'Dados do projeto'}</h3>
+          <h3>${editId ? 'Editar Orçamento ' + formatQuoteId(editId) : 'Dados do projeto'}</h3>
           <div class="form-grid">
             <label>Cliente
               <select id="qClient">
@@ -626,7 +610,6 @@ async function renderOrcamento(c, editId = null){
       <section class="panel">
         <div class="panel-head"><div><p class="eyebrow">PRODUÇÃO</p><h3>Custos e Processos</h3></div></div>
         <div class="form-grid four">
-          <label>Cortes<input id="qCuts" type="number" min="0" value="0"></label>
           <label>Fita de Borda - Tipo/Valor / m
             <select id="qTapePrice">
               <option value="${cfg.fita_borda_m || 2.50}">Fita Padrão — ${money(cfg.fita_borda_m || 2.50)}/m</option>
@@ -636,14 +619,14 @@ async function renderOrcamento(c, editId = null){
           </label>
           <label>Fita de Borda (Metros)<input id="qTape" type="number" min="0" step="0.01" value="0"></label>
           <label>Dias trabalhados oficina<input id="qDays" type="number" min="0" step="0.5" value="0"></label>
-          <label>Frete / Entrega (km)<input id="qKm" type="number" min="0" step="0.1" value="0"></label>
+          <label>Frete Terceirizado (R$)<input id="qFrete" type="number" min="0" step="0.01" value="0" placeholder="R$ 0,00"></label>
           <label>Serviço de Montagem (R$)<input id="qMontagem" type="number" min="0" step="0.01" value="0" placeholder="R$ 0,00"></label>
           <label>Projeto 3D (h)<input id="q3d" type="number" min="0" step="0.5" value="0"></label>
         </div>
       </section>
 
       <section class="panel">
-        <div class="panel-head"><div><p class="eyebrow">FERRAGENS</p><h3>Componentes</h3></div></div>
+        <div class="panel-head"><div><p class="eyebrow">FERRAGENS</p><h3>Componentes Internos</h3></div></div>
         <div id="hardwareRows">
           ${['Dobradiça','Corrediça','Puxador','Pistão','Outros'].map((tipo)=>`
             <div class="hardware">
@@ -663,26 +646,25 @@ async function renderOrcamento(c, editId = null){
       <section class="panel">
         <p class="eyebrow">OBSERVAÇÕES DO ORÇAMENTO</p>
         <h3>Informações adicionais para o cliente</h3>
-        <textarea id="qObs" rows="4" style="width:100%; border-radius:8px; border:1px solid #ccc; padding:10px;" placeholder="Ex.: O valor das chapas sofreu alteração referente ao último orçamento.">${esc(defaultObs)}</textarea>
+        <textarea id="qObs" rows="4" style="width:100%; border-radius:8px; border:1px solid #ccc; padding:10px;" placeholder="Ex.: Condições de pagamento, garantias, etc.">${esc(defaultObs)}</textarea>
       </section>
 
       <section class="panel" style="background:#fafafa;">
         <p class="eyebrow">DETALHAMENTO DO ORÇAMENTO</p>
-        <h3>Composição dos Custos do Orçamento</h3>
+        <h3>Composição dos Custos</h3>
         
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; font-size: 0.95rem;">
           <div>• Chapas MDF: <strong id="dMdf">R$ 0,00</strong></div>
-          <div>• Ferragens (Dobradiças, Corrediças...): <strong id="dFerr">R$ 0,00</strong></div>
-          <div>• Materiais Diversos (Cola, Serra, Parafusos...): <strong id="dIns">R$ 0,00</strong></div>
+          <div>• Materiais Diversos (Ferragens, Cola, Fita, Parafusos...): <strong id="dIns">R$ 0,00</strong></div>
           <div>• Mão de Obra (Oficina): <strong id="dMo">R$ 0,00</strong></div>
           <div>• Serviço de Montagem: <strong id="dMontagem">R$ 0,00</strong></div>
-          <div>• Frete / Entrega: <strong id="dFrete">R$ 0,00</strong></div>
+          <div>• Frete Terceirizado: <strong id="dFrete">R$ 0,00</strong></div>
         </div>
 
         <div class="quote-result" id="quoteResult">
-          <div><span>Custo Total do Projeto</span><strong id="rCost">${money(existingQuote?.custo_producao||0)}</strong></div>
+          <div><span>Custo Total de Produção</span><strong id="rCost">${money(existingQuote?.custo_producao||0)}</strong></div>
           <div><span>Lucro (${margemCalculada}%)</span><strong id="rProfit">${money(existingQuote?.valor_lucro||0)}</strong></div>
-          <div class="highlight"><span>Preço Final para o Cliente</span><strong id="rPrice">${money(existingQuote?.preco_final||0)}</strong></div>
+          <div class="highlight"><span>Preço Final de Venda</span><strong id="rPrice">${money(existingQuote?.preco_final||0)}</strong></div>
         </div>
       </section>
 
@@ -699,49 +681,44 @@ async function renderOrcamento(c, editId = null){
     const mdfQty = num($('#qMdfQty').value);
     const mdfTotal = mdfPrice * mdfQty;
 
-    let ferr = 0, items = [];
+    let ferragensTotal = 0;
     document.querySelectorAll('.hardware').forEach(r => {
       const o = r.querySelector('.f-select').selectedOptions[0];
       const q = num(r.querySelector('.f-qty').value);
       if(o?.value && q){
-        const total = num(o.dataset.price) * q;
-        ferr += total;
-        items.push({categoria:'Ferragem', descricao:o.textContent.split(' — ')[0], quantidade:q, custo_unitario:num(o.dataset.price), custo_total:total});
+        ferragensTotal += num(o.dataset.price) * q;
       }
     });
 
     const tapeMeters = num($('#qTape').value);
     const tapeUnitPrice = num($('#qTapePrice').value);
     const days = num($('#qDays').value);
-    const cuts = num($('#qCuts').value);
-    const km = num($('#qKm').value);
+    const frete = num($('#qFrete').value);
     const montagem = num($('#qMontagem').value);
     const h3d = num($('#q3d').value);
 
-    // Materiais Diversos (Cola, Parafusos, Serra, Borda, Custos Fixos Máquina/Energia)
+    // Custo de parafusos baseado na caixa
     const custoCaixaParafuso = num(cfg.caixa_parafuso_preco || 15.00); 
     const parafusosEstimados = mdfQty * 20; 
     const custoParafusos = (parafusosEstimados / 100) * custoCaixaParafuso; 
 
     const insumosBordaCola = custoParafusos + (tapeMeters * 10 * num(cfg.cola_g)) + (tapeMeters * tapeUnitPrice);
-    const desgasteSerra = cuts * num(cfg.desgaste_serra_corte);
+    const desgasteSerra = num(cfg.desgaste_serra_corte || 25.00); // Fixo por projeto
     const custosFixosEnergia = days * 8 * (num(cfg.luz_hora) + num(cfg.agua_hora) + num(cfg.maquina_depreciacao_hora));
     
-    // Total Materiais Diversos / Consumíveis
-    const materiaisDiversos = insumosBordaCola + desgasteSerra + custosFixosEnergia;
+    // Materiais Diversos (Unificação de Ferragens + Insumos + Parafusos + Fita + Serra + Custos Operacionais)
+    const materiaisDiversos = ferragensTotal + insumosBordaCola + desgasteSerra + custosFixosEnergia;
 
     const maoDeObra = days * num(cfg.dia_trabalho);
-    const frete = km * num(cfg.gasolina_km);
     const projeto3D = h3d * num(cfg.custo_hora_3d);
 
-    const cost = mdfTotal + ferr + materiaisDiversos + maoDeObra + montagem + frete + projeto3D;
+    const cost = mdfTotal + materiaisDiversos + maoDeObra + montagem + frete + projeto3D;
     const margin = Math.min(num($('#qMargin').value)/100, .99);
     const price = margin === 1 ? cost : cost / (1 - margin);
     const profit = price - cost;
-    const reinv = mdfTotal + ferr + materiaisDiversos;
+    const reinv = mdfTotal + materiaisDiversos;
 
     $('#dMdf').textContent = money(mdfTotal);
-    $('#dFerr').textContent = money(ferr);
     $('#dIns').textContent = money(materiaisDiversos);
     $('#dMo').textContent = money(maoDeObra);
     $('#dMontagem').textContent = money(montagem);
@@ -751,7 +728,7 @@ async function renderOrcamento(c, editId = null){
     $('#rProfit').textContent = money(profit);
     $('#rPrice').textContent = money(price);
 
-    return {cost, price, profit, reinv, items, mdfTotal, mdfQty, ferr, materiaisDiversos, maoDeObra, montagem, frete, prazoEntrega: $('#qDeliveryDays').value};
+    return {cost, price, profit, reinv, mdfTotal, mdfQty, materiaisDiversos, maoDeObra, montagem, frete, prazoEntrega: $('#qDeliveryDays').value};
   };
 
   $('#calcQuote').onclick = calculate;
@@ -762,6 +739,11 @@ async function renderOrcamento(c, editId = null){
     const x = calculate();
     const cid = $('#qClient').value || null;
 
+    let obsFinal = $('#qObs').value;
+    if(x.prazoEntrega && !obsFinal.includes('Prazo de Entrega')) {
+      obsFinal = `Prazo de Entrega estimado: ${x.prazoEntrega} dias.\n` + obsFinal;
+    }
+
     const payload = {
       projeto: $('#qProject').value,
       cliente_id: cid,
@@ -771,7 +753,7 @@ async function renderOrcamento(c, editId = null){
       preco_final: x.price,
       reinvestimento_materiais: x.reinv,
       status: existingQuote ? existingQuote.status : 'Pendente',
-      observacoes: `[Prazo de Entrega: ${x.prazoEntrega} dias]\n` + $('#qObs').value
+      observacoes: obsFinal
     };
 
     let data, error;
@@ -785,25 +767,25 @@ async function renderOrcamento(c, editId = null){
 
     if(editId) await sb.from('orcamento_itens').delete().eq('orcamento_id', editId);
 
+    // Itens unificados para o PDF
     const items = [
       {categoria:'MDF', descricao:$('#qMdf').selectedOptions[0]?.textContent || 'Chapas MDF', quantidade: x.mdfQty, custo_unitario: x.mdfTotal / Math.max(x.mdfQty,1), custo_total: x.mdfTotal},
-      ...x.items,
-      {categoria:'Materiais Diversos', descricao:'Cola, Fita, Parafusos e Insumos', quantidade:1, custo_unitario: x.materiaisDiversos, custo_total: x.materiaisDiversos},
-      {categoria:'Mão de Obra', descricao:'Mão de obra de marcenaria', quantidade:1, custo_unitario: x.maoDeObra, custo_total: x.maoDeObra},
-      {categoria:'Montagem', descricao:'Serviço de montagem local', quantidade:1, custo_unitario: x.montagem, custo_total: x.montagem},
-      {categoria:'Frete', descricao:'Transporte e Entrega', quantidade:1, custo_unitario: x.frete, custo_total: x.frete}
+      {categoria:'Materiais Diversos', descricao:'Ferragens, Fita, Cola, Parafusos e Insumos', quantidade:1, custo_unitario: x.materiaisDiversos, custo_total: x.materiaisDiversos},
+      {categoria:'Mão de Obra', descricao:'Serviço de Marcenaria', quantidade:1, custo_unitario: x.maoDeObra, custo_total: x.maoDeObra},
+      {categoria:'Montagem', descricao:'Serviço de Montagem no local', quantidade:1, custo_unitario: x.montagem, custo_total: x.montagem},
+      {categoria:'Frete', descricao:'Frete / Transporte terceirizado', quantidade:1, custo_unitario: x.frete, custo_total: x.frete}
     ].filter(i=>i.custo_total > 0);
 
     if(items.length) {
       await sb.from('orcamento_itens').insert(items.map(i=>({...i, orcamento_id: data.id})));
     }
 
-    toast(`Orçamento #${data.id} ${editId ? 'atualizado' : 'salvo'}.`);
+    toast(`Orçamento ${formatQuoteId(data.id)} ${editId ? 'atualizado' : 'salvo'}.`);
     navigate('historico');
   };
 }
 
-// ==================== GERADOR DE PDF ====================
+// ==================== GERADOR DE PDF PROFISSIONAL ====================
 async function generatePDF(id){
   const { jsPDF } = window.jspdf;
   const { data: q, error } = await sb.from('orcamentos').select('*, clientes(*), orcamento_itens(*)').eq('id', id).single();
@@ -811,45 +793,122 @@ async function generatePDF(id){
   if(error || !q) return toast('Erro ao carregar dados para o PDF', 'error');
 
   const doc = new jsPDF();
-  const clienteNome = q.clientes?.nome || q.cliente_nome_avulso || 'Cliente';
+  const cliente = q.clientes || {};
+  const clienteNome = cliente.nome || q.cliente_nome_avulso || 'Cliente';
 
-  doc.setFontSize(18);
-  doc.text("ORÇAMENTO DE MARCENARIA", 14, 20);
-  doc.setFontSize(10);
-  doc.text(`Orçamento #: ${q.id}`, 14, 28);
-  doc.text(`Data: ${new Date(q.data_criacao).toLocaleDateString('pt-BR')}`, 14, 34);
+  // Cabeçalho / Logo Vértice Marcenaria
+  try {
+    const imgLogo = new Image();
+    imgLogo.src = 'image_8adbf0.jpg';
+    doc.addImage(imgLogo, 'JPEG', 14, 12, 28, 28);
+  } catch(e){ console.error("Logo não carregado no PDF", e); }
 
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(26, 26, 26);
+  doc.text("VÉRTICE MARCENARIA", 46, 22);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 100);
+  doc.text("Móveis Planejados & Marcenaria Sob Medida", 46, 28);
+
+  // Número do Orçamento e Data
+  const numOrc = formatQuoteId(q.id);
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text("Dados do Cliente", 14, 45);
-  doc.setFontSize(10);
-  doc.text(`Nome: ${clienteNome}`, 14, 52);
-  if(q.clientes?.cpf) doc.text(`CPF: ${q.clientes.cpf}`, 14, 58);
-  if(q.clientes?.telefone) doc.text(`Telefone: ${q.clientes.telefone}`, 14, 64);
-  if(q.clientes?.endereco) doc.text(`Endereço: ${q.clientes.endereco}`, 14, 70);
+  doc.setTextColor(184, 148, 63); // Cor dourada
+  doc.text(`ORÇAMENTO ${numOrc}`, 196, 22, { align: 'right' });
 
-  const tableBody = (q.orcamento_itens || [])
-    .map(i => [i.categoria, i.descricao, i.quantidade, money(i.custo_unitario), money(i.custo_total)]);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Data: ${new Date(q.data_criacao).toLocaleDateString('pt-BR')}`, 196, 28, { align: 'right' });
+
+  // Linha Divisória Elegante
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.5);
+  doc.line(14, 44, 196, 44);
+
+  // Bloco de Dados do Cliente e Projeto
+  doc.setFillColor(248, 249, 250);
+  doc.rect(14, 48, 182, 34, 'F');
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(40, 40, 40);
+  doc.text("DADOS DO CLIENTE & PROJETO", 18, 55);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(60, 60, 60);
+  doc.text(`Cliente: ${clienteNome}`, 18, 62);
+  doc.text(`CPF: ${cliente.cpf || 'Não informado'}`, 18, 68);
+  doc.text(`Telefone: ${cliente.telefone || 'Não informado'}`, 18, 74);
+
+  doc.text(`Projeto: ${q.projeto}`, 110, 62);
+  doc.text(`Cidade / UF: ${cliente.cidade || 'Não informado'}`, 110, 68);
+  doc.text(`Endereço: ${cliente.endereco || 'Não informado'} ${cliente.numero ? 'nº ' + cliente.numero : ''}`, 110, 74);
+
+  // Tabela de Itens Simplificada e Profissional
+  const tableBody = (q.orcamento_itens || []).map(i => [
+    i.categoria,
+    i.descricao,
+    money(i.custo_total)
+  ]);
 
   doc.autoTable({
-    startY: 78,
-    head: [['Categoria', 'Descrição', 'Qtd', 'Vlr. Un.', 'Total']],
+    startY: 88,
+    head: [['Item / Serviço', 'Descrição', 'Valor Total']],
     body: tableBody,
+    theme: 'grid',
+    headStyles: { fillColor: [30, 30, 30], textColor: [255, 255, 255], fontStyle: 'bold' },
+    styles: { fontSize: 9, cellPadding: 4 },
+    columnStyles: {
+      0: { cellWidth: 50, fontStyle: 'bold' },
+      1: { cellWidth: 95 },
+      2: { cellWidth: 37, halign: 'right', fontStyle: 'bold' }
+    }
   });
 
   let finalY = doc.lastAutoTable.finalY + 10;
 
+  // Bloco de Observações
   if(q.observacoes) {
-    doc.setFontSize(11);
-    doc.text("Observações e Informações:", 14, finalY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(40, 40, 40);
+    doc.text("OBSERVAÇÕES E CONDIÇÕES:", 14, finalY);
+
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text(q.observacoes, 14, finalY + 6);
-    finalY += 20;
+    doc.setTextColor(80, 80, 80);
+    
+    const lines = doc.splitTextToSize(q.observacoes, 182);
+    doc.text(lines, 14, finalY + 6);
+    finalY += (lines.length * 5) + 8;
   }
 
-  doc.setFontSize(14);
-  doc.text(`VALOR TOTAL: ${money(q.preco_final)}`, 14, finalY + 10);
+  // Bloco do Valor Final
+  doc.setFillColor(30, 30, 30);
+  doc.rect(14, finalY, 182, 16, 'F');
 
-  doc.save(`Orcamento_${q.id}_${clienteNome.replace(/\s+/g, '_')}.pdf`);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(255, 255, 255);
+  doc.text("VALOR TOTAL DA PROPOSTA:", 20, finalY + 10.5);
+
+  doc.setFontSize(13);
+  doc.setTextColor(212, 175, 55); // Dourado
+  doc.text(money(q.preco_final), 190, finalY + 10.5, { align: 'right' });
+
+  // Assinatura / Rodapé
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(150, 150, 150);
+  doc.text("Vértice Marcenaria — Qualidade e Compromisso Sob Medida", 105, 285, { align: 'center' });
+
+  doc.save(`Orcamento_${numOrc}_${clienteNome.replace(/\s+/g, '_')}.pdf`);
   toast('PDF Gerado com sucesso!');
 }
 
