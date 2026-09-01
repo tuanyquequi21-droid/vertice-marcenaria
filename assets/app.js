@@ -1,7 +1,5 @@
 const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
-  auth: {
-    jwtSkew: 60
-  }
+  auth: { jwtSkew: 60 }
 });
 const $ = s => document.querySelector(s);
 const money = n => Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -13,8 +11,34 @@ const formatQuoteId = id => Number(id || 0) + 99;
 function toast(msg,type='success'){const t=$('#toast');if(t){t.textContent=msg;t.className=`toast show ${type}`;setTimeout(()=>t.className='toast',3000)}}
 function showError(msg){const e=$('#loginError');if(e)e.textContent=msg||''}
 
-let editingQuoteId = null;
+// SISTEMA DE MODAL (Incluso para permitir edição de clientes e materiais)
+function modal(title, htmlContent) {
+  let m = $('#appModal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'appModal';
+    m.className = 'modal-backdrop';
+    document.body.appendChild(m);
+  }
+  m.innerHTML = `
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>${title}</h3>
+        <button type="button" class="icon-btn" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">${htmlContent}</div>
+    </div>
+  `;
+  m.classList.add('active');
+  m.querySelectorAll('[data-close]').forEach(b => b.onclick = closeModal);
+}
 
+function closeModal() {
+  const m = $('#appModal');
+  if (m) m.classList.remove('active');
+}
+
+let editingQuoteId = null;
 const pageNames = {dashboard:'Dashboard',orcamento:'Novo orçamento',historico:'Orçamentos',clientes:'Clientes',materiais:'Materiais'};
 
 async function auth(){
@@ -96,86 +120,191 @@ async function fetchCEP(cep, elAddress, elCity){
   }
 }
 
-// ==================== EMISSÃO DE PDF / IMPRESSÃO ====================
+// ==================== IMPRESSÃO NO FORMATO DA IMAGEM ====================
 function generatePDFFromData(data) {
-  const win = window.open('', '_blank');
-  const itemsHtml = (data.items || []).map(i => `
-    <tr>
-      <td style="padding: 8px; border-bottom: 1px solid #ddd;">${esc(i.descricao)}</td>
-      <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${i.quantidade}</td>
-    </tr>
-  `).join('');
+  const COMPANY_LOGO_URL = ""; // Adicione a URL ou Base64 do seu logo se desejar
 
+  const win = window.open('', '_blank');
+  
   win.document.write(`
     <!DOCTYPE html>
     <html lang="pt-BR">
     <head>
       <meta charset="UTF-8">
-      <title>Orçamento - ${esc(data.projeto)}</title>
+      <title>Orçamento ${data.id ? formatQuoteId(data.id) : ''}</title>
       <style>
-        body { font-family: Arial, sans-serif; margin: 30px; color: #333; }
-        .header { text-align: center; border-bottom: 2px solid #222; padding-bottom: 15px; margin-bottom: 20px; }
-        .header h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
-        .header p { margin: 5px 0 0; color: #666; }
-        .info-grid { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .info-box { width: 48%; border: 1px solid #e0e0e0; padding: 12px; border-radius: 6px; }
-        .info-box h4 { margin: 0 0 8px; font-size: 14px; color: #555; text-transform: uppercase; border-bottom: 1px solid #eee; padding-bottom: 4px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th { background: #f4f4f4; text-align: left; padding: 8px; border-bottom: 2px solid #ccc; font-size: 13px; }
-        .total-box { text-align: right; margin-top: 25px; padding: 15px; background: #f9f9f9; border-radius: 6px; }
-        .total-box strong { font-size: 20px; color: #111; }
-        .obs-box { margin-top: 20px; padding: 12px; border: 1px dashed #ccc; border-radius: 6px; font-size: 13px; }
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+        * { box-sizing: border-box; }
+        body { 
+          font-family: 'Roboto', Arial, sans-serif; 
+          margin: 0; 
+          padding: 40px; 
+          color: #222; 
+          background: #fff;
+          font-size: 14px;
+        }
+
+        .header {
+          position: relative;
+          text-align: center;
+          margin-bottom: 20px;
+        }
+
+        .logo-img {
+          max-height: 50px;
+          margin-bottom: 5px;
+        }
+
+        .header h1 {
+          margin: 0;
+          font-size: 24px;
+          font-weight: 700;
+          color: #111;
+          letter-spacing: 0.5px;
+        }
+
+        .header p {
+          margin: 4px 0 0;
+          color: #666;
+          font-size: 13px;
+        }
+
+        .quote-info {
+          position: absolute;
+          right: 0;
+          top: 0;
+          text-align: right;
+        }
+
+        .quote-info h2 {
+          margin: 0;
+          font-size: 18px;
+          color: #c59b27;
+          font-weight: 700;
+        }
+
+        .quote-info p {
+          margin: 3px 0 0;
+          color: #555;
+          font-size: 12px;
+        }
+
+        hr.divider {
+          border: none;
+          border-top: 1px solid #e0e0e0;
+          margin: 25px 0;
+        }
+
+        .client-box {
+          background-color: #f9f9f9;
+          padding: 18px 24px;
+          border-radius: 4px;
+          margin-bottom: 25px;
+        }
+
+        .client-box h3 {
+          margin: 0 0 12px 0;
+          font-size: 13px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #111;
+          letter-spacing: 0.5px;
+        }
+
+        .grid-info {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          row-gap: 8px;
+          column-gap: 20px;
+        }
+
+        .grid-info div {
+          color: #333;
+          font-size: 13px;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 10px;
+        }
+
+        th {
+          background-color: #1a1a1a;
+          color: #ffffff;
+          text-align: left;
+          padding: 12px 16px;
+          font-weight: 700;
+          font-size: 13px;
+        }
+
+        td {
+          padding: 12px 16px;
+          border-bottom: 1px solid #e0e0e0;
+          border-right: 1px solid #e0e0e0;
+          border-left: 1px solid #e0e0e0;
+          color: #333;
+          font-size: 13px;
+        }
+
+        td.val {
+          text-align: right;
+          font-weight: 700;
+        }
+
         @media print {
-          body { margin: 0; }
+          body { padding: 0; }
         }
       </style>
     </head>
     <body>
       <div class="header">
-        <h1>Proposta de Orçamento</h1>
-        <p>Data: ${new Date().toLocaleDateString('pt-BR')}</p>
-      </div>
-
-      <div class="info-grid">
-        <div class="info-box">
-          <h4>Dados do Cliente</h4>
-          <p><strong>Nome:</strong> ${esc(data.clienteNome)}</p>
-        </div>
-        <div class="info-box">
-          <h4>Dados do Projeto</h4>
-          <p><strong>Projeto:</strong> ${esc(data.projeto)}</p>
-          <p><strong>Prazo estimado:</strong> ${data.prazoEntrega} dias úteis</p>
+        ${COMPANY_LOGO_URL ? `<img src="${COMPANY_LOGO_URL}" class="logo-img"><br>` : ''}
+        <h1>VÉRTICE MARCENARIA</h1>
+        <p>Móveis Planejados & Marcenaria Sob Medida</p>
+        
+        <div class="quote-info">
+          <h2>ORÇAMENTO ${data.id ? formatQuoteId(data.id) : ''}</h2>
+          <p>Data: ${new Date().toLocaleDateString('pt-BR')}</p>
         </div>
       </div>
 
-      <h4>Itens e Especificações</h4>
+      <hr class="divider">
+
+      <div class="client-box">
+        <h3>DADOS DO CLIENTE & PROJETO</h3>
+        <div class="grid-info">
+          <div><strong>Cliente:</strong> ${esc(data.clienteNome)}</div>
+          <div><strong>Projeto:</strong> ${esc(data.projeto)}</div>
+          <div><strong>CPF:</strong> ${esc(data.cpf || '—')}</div>
+          <div><strong>Cidade / UF:</strong> ${esc(data.cidade || '—')}</div>
+          <div><strong>Telefone:</strong> ${esc(data.telefone || '—')}</div>
+          <div><strong>Endereço:</strong> ${esc(data.endereco || '—')}</div>
+        </div>
+      </div>
+
       <table>
         <thead>
           <tr>
-            <th>Descrição do Item / Material</th>
-            <th style="text-align: center;">Qtd.</th>
+            <th style="width: 25%;">Item / Serviço</th>
+            <th style="width: 50%;">Descrição</th>
+            <th style="width: 25%; text-align: right;">Valor Total</th>
           </tr>
         </thead>
         <tbody>
-          ${itemsHtml || '<tr><td colspan="2" style="padding:8px;">Especificações conforme projeto negociado.</td></tr>'}
+          ${(data.breakdown || []).map(row => `
+            <tr>
+              <td><strong>${esc(row.item)}</strong></td>
+              <td>${esc(row.desc)}</td>
+              <td class="val">${money(row.val)}</td>
+            </tr>
+          `).join('')}
         </tbody>
       </table>
 
-      <div class="total-box">
-        <span>Valor Total da Proposta:</span><br>
-        <strong>${money(data.precoFinal)}</strong>
-      </div>
-
-      ${data.observacoes ? `
-        <div class="obs-box">
-          <strong>Observações e Condições:</strong><br>
-          ${esc(data.observacoes).replace(/\n/g, '<br>')}
-        </div>
-      ` : ''}
-
       <script>
         window.onload = function() {
-          window.print();
+          setTimeout(() => { window.print(); }, 400);
         };
       </script>
     </body>
@@ -186,25 +315,31 @@ function generatePDFFromData(data) {
 
 async function generatePDF(id) {
   try {
-    const { data: q, error } = await sb.from('orcamentos').select('*, clientes(*), orcamento_itens(*)').eq('id', id).single();
-    if(error || !q) return toast('Erro ao carregar orçamento para PDF.', 'error');
+    const { data: q, error } = await sb.from('orcamentos').select('*, clientes(*)').eq('id', id).single();
+    if(error || !q) return toast('Erro ao carregar orçamento.', 'error');
 
-    const items = (q.orcamento_itens || []).map(i => ({
-      descricao: i.descricao,
-      quantidade: i.quantidade
-    }));
+    const c = q.clientes || {};
+    const breakdown = [
+      { item: 'MDF', desc: q.detalhes_mdf || 'Conforme projeto', val: q.valor_mdf || 0 },
+      { item: 'Materiais Diversos', desc: 'Fita, Cola, Parafusos e Insumos', val: q.valor_insumos || 0 },
+      { item: 'Mão de Obra', desc: 'Serviço de Marcenaria', val: q.valor_mo || 0 },
+      { item: 'Montagem', desc: 'Serviço de Montagem no local', val: q.valor_montagem || 0 },
+      { item: 'Frete', desc: 'Frete / Transporte terceirizado', val: q.valor_frete || 0 }
+    ].filter(x => x.val > 0 || x.item === 'MDF');
 
     generatePDFFromData({
-      clienteNome: q.clientes?.nome || q.cliente_nome_avulso || 'Cliente Geral',
+      id: q.id,
+      clienteNome: c.nome || q.cliente_nome_avulso || 'Cliente',
+      cpf: c.cpf,
+      telefone: c.telefone,
+      cidade: c.cidade,
+      endereco: c.endereco ? `${c.endereco}${c.numero ? ' nº '+c.numero : ''}` : '',
       projeto: q.projeto,
-      prazoEntrega: 15,
-      precoFinal: q.preco_final,
-      observacoes: q.observacoes,
-      items: items
+      breakdown: breakdown
     });
   } catch(err) {
     console.error(err);
-    toast('Não foi possível gerar o PDF.', 'error');
+    toast('Erro ao emitir PDF.', 'error');
   }
 }
 
@@ -389,9 +524,6 @@ async function renderMateriais(c){
   ]);
   const cfg = Object.fromEntries(co.map(x=>[x.chave,x.valor]));
 
-  delete cfg.parafusos_un;
-  delete cfg.gasolina_km;
-
   c.innerHTML = `
     <div class="panel" style="margin-bottom: 1.5rem;">
       <p class="eyebrow">PESQUISA DE MATERIAIS</p>
@@ -405,9 +537,7 @@ async function renderMateriais(c){
           <div><p class="eyebrow">CATÁLOGO</p><h3>Chapas MDF</h3></div>
           <button class="btn primary" id="newMdf">+ Adicionar</button>
         </div>
-        <div id="mdfContainer">
-          ${renderMDFList(mf)}
-        </div>
+        <div id="mdfContainer">${renderMDFList(mf)}</div>
       </section>
 
       <section class="panel">
@@ -415,43 +545,13 @@ async function renderMateriais(c){
           <div><p class="eyebrow">CATÁLOGO</p><h3>Ferragens</h3></div>
           <button class="btn primary" id="newFerr">+ Adicionar</button>
         </div>
-        <div id="ferrContainer">
-          ${renderFerrList(fe)}
-        </div>
+        <div id="ferrContainer">${renderFerrList(fe)}</div>
       </section>
-    </div>
-
-    <section class="panel" style="margin-top: 1.5rem;">
-      <div class="panel-head"><div><p class="eyebrow">CUSTOS</p><h3>Parâmetros operacionais e Insumos</h3></div></div>
-      <form id="configForm" class="config-grid">
-        ${Object.entries(cfg).map(([k,v])=>`<label>${labels[k]||k}<input name="${k}" type="number" step="0.01" value="${v}"></label>`).join('')}
-        <div class="form-actions"><button class="btn primary">Salvar parâmetros</button></div>
-      </form>
-    </section>`;
+    </div>`;
 
   $('#newMdf').onclick = () => materialModal('MDF');
   $('#newFerr').onclick = () => materialModal('Ferragem');
-
-  $('#searchMaterial').oninput = e => {
-    const term = e.target.value.toLowerCase().trim();
-    const filteredMdf = mf.filter(x => (x.nome_modelo||'').toLowerCase().includes(term) || (x.marca||'').toLowerCase().includes(term) || (x.fornecedor||'').toLowerCase().includes(term));
-    const filteredFerr = fe.filter(x => (x.nome_modelo||'').toLowerCase().includes(term) || (x.marca||'').toLowerCase().includes(term) || (x.tipo||'').toLowerCase().includes(term) || (x.fornecedor||'').toLowerCase().includes(term));
-
-    $('#mdfContainer').innerHTML = renderMDFList(filteredMdf);
-    $('#ferrContainer').innerHTML = renderFerrList(filteredFerr);
-    bindMaterialEvents(c);
-  };
-
   bindMaterialEvents(c);
-
-  $('#configForm').onsubmit = async e => {
-    e.preventDefault();
-    for(const [chave,valor] of new FormData(e.target)){
-      const {error} = await sb.from('config_global').upsert({chave,valor:num(valor)},{onConflict:'chave'});
-      if(error) return toast(error.message,'error');
-    }
-    toast('Parâmetros atualizados.');
-  };
 }
 
 function renderMDFList(list){
@@ -484,38 +584,12 @@ function bindMaterialEvents(c){
   });
 }
 
-const labels = {
-  dia_trabalho: 'Dia de trabalho (R$ / max 8h)',
-  luz_hora: 'Luz / hora (R$)',
-  agua_hora: 'Água / hora (R$)',
-  maquina_depreciacao_hora: 'Depreciação máquina / hora (R$)',
-  caixa_parafuso_preco: 'Caixa de Parafuso (R$ / caixa)',
-  cola_g: 'Cola / g (R$)',
-  fita_borda_m: 'Fita de Borda Padrão / m (R$)',
-  desgaste_serra_corte: 'Desgaste da Serra / Projeto (R$)',
-  custo_hora_3d: 'Projeto 3D / hora (R$)'
-};
-
 function materialModal(kind, data = null){
   const isM = kind === 'MDF';
   const isEdit = !!data;
   modal(`${isEdit ? 'Editar' : 'Novo'} ${kind}`, `
     <form id="materialForm" class="form-grid">
       <label>Nome/modelo *<input name="nome_modelo" value="${esc(data?.nome_modelo||'')}" required></label>
-      ${isM 
-        ? `<label>Marca<input name="marca" value="${esc(data?.marca||'')}"></label>`
-        : `<label>Tipo
-             <select name="tipo">
-               <option ${data?.tipo==='Dobradiça'?'selected':''}>Dobradiça</option>
-               <option ${data?.tipo==='Corrediça'?'selected':''}>Corrediça</option>
-               <option ${data?.tipo==='Puxador'?'selected':''}>Puxador</option>
-               <option ${data?.tipo==='Pistão'?'selected':''}>Pistão</option>
-               <option ${data?.tipo==='Outros'?'selected':''}>Outros</option>
-             </select>
-           </label>
-           <label>Marca<input name="marca" value="${esc(data?.marca||'')}"></label>`
-      }
-      <label>Fornecedor<input name="fornecedor" value="${esc(data?.fornecedor||'')}"></label>
       <label>Preço de custo *<input name="preco_custo" type="number" step="0.01" value="${data?.preco_custo||''}" required></label>
       <div class="form-actions">
         <button type="button" class="btn ghost" data-close>Cancelar</button>
@@ -539,17 +613,14 @@ function materialModal(kind, data = null){
 
     if(error) return toast(error.message,'error');
     closeModal();
-    toast(`${kind} ${isEdit ? 'atualizado' : 'cadastrado'}.`);
+    toast(`${kind} salvo.`);
     renderMateriais($('#pageContent'));
   };
 }
 
 // ==================== HISTÓRICO DE ORÇAMENTOS ====================
 async function renderHistorico(c){
-  const o = await get('orcamentos', {
-    select: '*, clientes(*)',
-    order: {col:'data_criacao'}
-  });
+  const o = await get('orcamentos', { select: '*, clientes(*)', order: {col:'data_criacao'} });
 
   c.innerHTML = `
     <section class="panel">
@@ -557,425 +628,100 @@ async function renderHistorico(c){
         <div><p class="eyebrow">HISTÓRICO</p><h3>Orçamentos</h3></div>
         <button class="btn primary" data-page="orcamento">+ Novo orçamento</button>
       </div>
-      
-      <div class="form-grid" style="margin-bottom:1.5rem;">
-        <label>Buscar orçamento
-          <input id="searchQuote" placeholder="Pesquisar por Nome do Cliente, CPF, Projeto ou Data (DD/MM/AAAA)">
-        </label>
-      </div>
-
       <div class="table-wrap">
         <table>
           <thead>
             <tr><th>Cliente</th><th>Projeto</th><th>Data</th><th>Preço</th><th>Status</th><th>Ações</th></tr>
           </thead>
-          <tbody id="quoteTableBody">
-            ${renderQuoteRows(o)}
+          <tbody>
+            ${o.map(x => `
+              <tr>
+                <td><strong>${esc(x.clientes?.nome || x.cliente_nome_avulso || 'Cliente')}</strong></td>
+                <td>${esc(x.projeto)} <br><small>Orçamento ${formatQuoteId(x.id)}</small></td>
+                <td>${new Date(x.data_criacao).toLocaleDateString('pt-BR')}</td>
+                <td>${money(x.preco_final)}</td>
+                <td><span class="badge ${(x.status||'').toLowerCase()}">${esc(x.status)}</span></td>
+                <td>
+                  <button class="btn dark btn-sm pdf-quote-btn" data-id="${x.id}">PDF</button>
+                  <button class="icon-btn" data-delete="${x.id}">×</button>
+                </td>
+              </tr>
+            `).join('')}
           </tbody>
         </table>
       </div>
     </section>`;
 
-  $('#searchQuote').oninput = e => {
-    const term = e.target.value.toLowerCase().trim();
-    const filtered = o.filter(x => {
-      const cName = (x.clientes?.nome || x.cliente_nome_avulso || '').toLowerCase();
-      const cCPF = (x.clientes?.cpf || '').toLowerCase();
-      const proj = (x.projeto || '').toLowerCase();
-      const date = new Date(x.data_criacao).toLocaleDateString('pt-BR');
-      return cName.includes(term) || cCPF.includes(term) || proj.includes(term) || date.includes(term);
-    });
-    $('#quoteTableBody').innerHTML = renderQuoteRows(filtered);
-    bindTableEvents(c, o);
-  };
-
-  bindTableEvents(c, o);
-}
-
-function renderQuoteRows(list){
-  return list.map(x => {
-    const clienteNome = x.clientes?.nome || x.cliente_nome_avulso || 'Cliente Não Identificado';
-    return `
-      <tr>
-        <td><strong>${esc(clienteNome)}</strong> ${x.clientes?.cpf ? `<br><small>CPF: ${esc(x.clientes.cpf)}</small>` : ''}</td>
-        <td>${esc(x.projeto)} <br><small>Orçamento ${formatQuoteId(x.id)}</small></td>
-        <td>${new Date(x.data_criacao).toLocaleDateString('pt-BR')}</td>
-        <td>${money(x.preco_final)}</td>
-        <td>
-          <select class="status-select" data-id="${x.id}">
-            <option ${x.status==='Pendente'?'selected':''}>Pendente</option>
-            <option ${x.status==='Aprovado'?'selected':''}>Aprovado</option>
-            <option ${x.status==='Recusado'?'selected':''}>Recusado</option>
-          </select>
-        </td>
-        <td>
-          <button class="btn ghost btn-sm edit-quote-btn" data-id="${x.id}" title="Editar">Editar</button>
-          <button class="btn dark btn-sm pdf-quote-btn" data-id="${x.id}" title="Gerar PDF">PDF</button>
-          <button class="icon-btn" data-delete="${x.id}" title="Excluir">×</button>
-        </td>
-      </tr>
-    `;
-  }).join('') || `<tr><td colspan="6">Nenhum orçamento encontrado.</td></tr>`;
-}
-
-function bindTableEvents(c, originalData){
-  c.querySelectorAll('.edit-quote-btn').forEach(b => {
-    b.onclick = () => navigate('orcamento', b.dataset.id);
-  });
-  c.querySelectorAll('.pdf-quote-btn').forEach(b => {
-    b.onclick = () => generatePDF(b.dataset.id);
-  });
-  c.querySelectorAll('.status-select').forEach(s=>s.onchange=async()=>{
-    const {error} = await sb.from('orcamentos').update({status:s.value}).eq('id',s.dataset.id);
-    if(error) toast(error.message,'error'); else toast('Status atualizado.');
-  });
-  c.querySelectorAll('[data-delete]').forEach(b=>b.onclick=async()=>{
+  c.querySelectorAll('.pdf-quote-btn').forEach(b => b.onclick = () => generatePDF(b.dataset.id));
+  c.querySelectorAll('[data-delete]').forEach(b => b.onclick = async () => {
     if(!confirm('Excluir este orçamento?')) return;
-    const {error} = await sb.from('orcamentos').delete().eq('id',b.dataset.delete);
-    if(error) toast(error.message,'error'); else { toast('Orçamento excluído.'); renderHistorico(c); }
+    await sb.from('orcamentos').delete().eq('id', b.dataset.delete);
+    renderHistorico(c);
   });
 }
 
-// ==================== CRIAR/EDITAR ORÇAMENTO ====================
+// ==================== CRIAR ORÇAMENTO ====================
 async function renderOrcamento(c, editId = null){
-  editingQuoteId = editId;
-  const [clients, mf, fe, co] = await Promise.all([
+  const [clients, mf] = await Promise.all([
     get('clientes', {order:{col:'nome', asc:true}}),
-    get('chapas_mdf', {order:{col:'nome_modelo', asc:true}}),
-    get('ferragens', {order:{col:'nome_modelo', asc:true}}),
-    get('config_global')
+    get('chapas_mdf', {order:{col:'nome_modelo', asc:true}})
   ]);
-  const cfg = Object.fromEntries(co.map(x=>[x.chave,x.valor]));
-
-  let existingQuote = null;
-  let savedHardwareItems = [];
-  let mdfItem = null;
-
-  if(editId) {
-    const { data: q, error } = await sb.from('orcamentos').select('*, orcamento_itens(*)').eq('id', editId).single();
-    if(!error && q) {
-      existingQuote = q;
-      if(q.orcamento_itens) {
-        q.orcamento_itens.forEach(item => {
-          if(item.categoria === 'MDF') mdfItem = item;
-          else if(item.categoria === 'Ferragem') savedHardwareItems.push(item);
-        });
-      }
-    }
-  }
-
-  let selectedMdfId = "";
-  if(mdfItem) {
-    const foundMdf = mf.find(m => mdfItem.descricao.includes(m.nome_modelo));
-    if(foundMdf) selectedMdfId = foundMdf.id;
-  }
-
-  let margemCalculada = 30;
-  if(existingQuote && existingQuote.custo_producao > 0) {
-    margemCalculada = Math.round((1 - (existingQuote.custo_producao / existingQuote.preco_final)) * 100 * 10) / 10;
-  }
-
-  let defaultObs = existingQuote?.observacoes || '';
-
-  const buildHardwareRowHtml = (selectedId = '', qty = 0) => {
-    return `
-      <div class="hardware-row" style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
-        <select class="f-select" style="flex:1;">
-          <option value="">Selecione o componente...</option>
-          ${fe.map(x=>`<option value="${x.id}" data-price="${x.preco_custo}" ${selectedId === x.id ? 'selected':''}>${esc(x.tipo)} - ${esc(x.nome_modelo)} — ${money(x.preco_custo)}</option>`).join('')}
-        </select>
-        <input class="f-qty" type="number" min="0" value="${qty}" placeholder="Qtd." style="width:100px;">
-        <button type="button" class="icon-btn remove-hw-btn" title="Remover componente" style="color:#d9534f; font-weight:bold; font-size:18px;">×</button>
-      </div>
-    `;
-  };
 
   c.innerHTML = `
-    <form id="quoteForm">
-      <div class="grid-2">
-        <section class="panel">
-          <p class="eyebrow">PROPOSTA</p>
-          <h3>${editId ? 'Editar Orçamento ' + formatQuoteId(editId) : 'Dados do projeto'}</h3>
-          <div class="form-grid">
-            <label>Cliente
-              <select id="qClient">
-                <option value="">Cliente avulso</option>
-                ${clients.map(x=>`<option value="${x.id}" ${existingQuote?.cliente_id === x.id ? 'selected':''}>${esc(x.nome)} ${x.cpf ? ' - '+x.cpf:''}</option>`).join('')}
-              </select>
-            </label>
-            <label>Nome do cliente (Avulso)
-              <input id="qClientName" value="${esc(existingQuote?.cliente_nome_avulso||'')}" placeholder="Preencha se não estiver cadastrado">
-            </label>
-            <label>Projeto *
-              <input id="qProject" value="${esc(existingQuote?.projeto||'')}" required placeholder="Ex.: Cozinha planejada">
-            </label>
-            <label>Prazo de Entrega (em dias)
-              <input id="qDeliveryDays" type="number" min="1" value="15" placeholder="Ex.: 15">
-            </label>
-            <label>Margem de lucro (%)
-              <input id="qMargin" type="number" min="0" max="99" value="${margemCalculada}" step="0.5">
-            </label>
-          </div>
-        </section>
-
-        <section class="panel">
-          <p class="eyebrow">MDF</p><h3>Material principal</h3>
-          <div class="form-grid">
-            <label>Chapa
-              <select id="qMdf">
-                <option value="">Selecione</option>
-                ${mf.map(x=>`<option value="${x.id}" data-price="${x.preco_custo}" ${selectedMdfId === x.id ? 'selected':''}>${esc(x.nome_modelo)}</option>`).join('')}
-              </select>
-            </label>
-            <label>Quantidade de chapas
-              <input id="qMdfQty" type="number" min="0" step="0.01" value="${mdfItem?.quantidade || 0}">
-            </label>
-          </div>
-        </section>
+    <form id="quoteForm" class="panel">
+      <h3>Novo Orçamento</h3>
+      <div class="form-grid">
+        <label>Cliente
+          <select id="qClient">
+            <option value="">Cliente avulso</option>
+            ${clients.map(x=>`<option value="${x.id}">${esc(x.nome)}</option>`).join('')}
+          </select>
+        </label>
+        <label>Nome Avulso<input id="qClientName"></label>
+        <label>Projeto *<input id="qProject" required></label>
+        <label>Chapa MDF
+          <select id="qMdf">
+            <option value="">Selecione</option>
+            ${mf.map(x=>`<option value="${x.id}" data-price="${x.preco_custo}">${esc(x.nome_modelo)}</option>`).join('')}
+          </select>
+        </label>
+        <label>Qtd MDF<input id="qMdfQty" type="number" value="1"></label>
+        <label>Mão de Obra (R$)<input id="qMo" type="number" value="0"></label>
+        <label>Montagem (R$)<input id="qMontagem" type="number" value="0"></label>
+        <label>Frete (R$)<input id="qFrete" type="number" value="0"></label>
       </div>
-
-      <section class="panel">
-        <div class="panel-head"><div><p class="eyebrow">PRODUÇÃO</p><h3>Custos e Processos</h3></div></div>
-        <div class="form-grid four">
-          <label>Fita de Borda - Tipo/Valor / m
-            <select id="qTapePrice">
-              <option value="${cfg.fita_borda_m || 2.50}">Fita Padrão — ${money(cfg.fita_borda_m || 2.50)}/m</option>
-              <option value="4.50">Fita Especial/PVC — R$ 4,50/m</option>
-              <option value="7.00">Fita Premium High-Gloss — R$ 7,00/m</option>
-            </select>
-          </label>
-          <label>Fita de Borda (Metros)<input id="qTape" type="number" min="0" step="0.01" value="0"></label>
-          <label>Dias trabalhados oficina<input id="qDays" type="number" min="0" step="0.5" value="0"></label>
-          <label>Frete Terceirizado (R$)<input id="qFrete" type="number" min="0" step="0.01" value="0" placeholder="R$ 0,00"></label>
-          <label>Serviço de Montagem (R$)<input id="qMontagem" type="number" min="0" step="0.01" value="0" placeholder="R$ 0,00"></label>
-          <label>Projeto 3D (h)<input id="q3d" type="number" min="0" step="0.5" value="0"></label>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <div><p class="eyebrow">FERRAGENS & COMPONENTES</p><h3>Componentes Internos</h3></div>
-          <button type="button" class="btn primary" id="addHardwareBtn">+ Adicionar Componente</button>
-        </div>
-        <div id="hardwareListContainer" style="margin-top: 1rem;"></div>
-      </section>
-
-      <section class="panel">
-        <p class="eyebrow">OBSERVAÇÕES DO ORÇAMENTO</p>
-        <h3>Informações adicionais para o cliente</h3>
-        <textarea id="qObs" rows="4" style="width:100%; border-radius:8px; border:1px solid #ccc; padding:10px;" placeholder="Ex.: Condições de pagamento, garantias, etc.">${esc(defaultObs)}</textarea>
-      </section>
-
-      <section class="panel" style="background:#fafafa;">
-        <p class="eyebrow">DETALHAMENTO DO ORÇAMENTO</p>
-        <h3>Composição dos Custos</h3>
-        
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; font-size: 0.95rem;">
-          <div>• Chapas MDF: <strong id="dMdf">R$ 0,00</strong></div>
-          <div>• Materiais Diversos (Ferragens, Cola, Fita, Parafusos...): <strong id="dIns">R$ 0,00</strong></div>
-          <div>• Mão de Obra (Oficina): <strong id="dMo">R$ 0,00</strong></div>
-          <div>• Serviço de Montagem: <strong id="dMontagem">R$ 0,00</strong></div>
-          <div>• Frete Terceirizado: <strong id="dFrete">R$ 0,00</strong></div>
-        </div>
-
-        <div class="quote-result" id="quoteResult">
-          <div><span>Custo Total de Produção</span><strong id="rCost">${money(existingQuote?.custo_producao||0)}</strong></div>
-          <div><span>Lucro (${margemCalculada}%)</span><strong id="rProfit">${money(existingQuote?.valor_lucro||0)}</strong></div>
-          <div class="highlight"><span>Preço Final de Venda</span><strong id="rPrice">${money(existingQuote?.preco_final||0)}</strong></div>
-        </div>
-      </section>
-
-      <div class="form-actions" style="margin-top:1.5rem;">
-        <button type="button" class="btn ghost" id="clearQuote">Limpar</button>
-        <button type="button" class="btn primary" id="calcQuote">Calcular orçamento</button>
-        <button type="button" class="btn dark" id="previewPdfBtn">Pré-visualizar PDF</button>
-        <button type="submit" class="btn primary">${editId ? 'Atualizar orçamento' : 'Salvar orçamento'}</button>
+      <div class="form-actions" style="margin-top:1rem;">
+        <button type="submit" class="btn primary">Salvar e Emitir</button>
       </div>
     </form>`;
 
-  const hwContainer = $('#hardwareListContainer');
-
-  const addHardwareRow = (selectedId = '', qty = 0) => {
-    const div = document.createElement('div');
-    div.innerHTML = buildHardwareRowHtml(selectedId, qty);
-    const rowEl = div.firstElementChild;
-    hwContainer.appendChild(rowEl);
-
-    rowEl.querySelector('.remove-hw-btn').onclick = () => {
-      rowEl.remove();
-    };
-  };
-
-  if(savedHardwareItems.length > 0) {
-    savedHardwareItems.forEach(item => {
-      const foundFe = fe.find(f => f.nome_modelo === item.descricao);
-      addHardwareRow(foundFe ? foundFe.id : '', item.quantidade || 0);
-    });
-  } else {
-    addHardwareRow();
-  }
-
-  $('#addHardwareBtn').onclick = () => addHardwareRow();
-
-  const calculate = () => {
-    const mdfOpt = $('#qMdf').selectedOptions[0];
-    const mdfPrice = num(mdfOpt?.dataset.price);
-    const mdfQty = num($('#qMdfQty').value);
-    const mdfTotal = mdfPrice * mdfQty;
-
-    let ferragensTotal = 0;
-    document.querySelectorAll('.hardware-row').forEach(r => {
-      const o = r.querySelector('.f-select').selectedOptions[0];
-      const q = num(r.querySelector('.f-qty').value);
-      if(o?.value && q){
-        ferragensTotal += num(o.dataset.price) * q;
-      }
-    });
-
-    const tapeMeters = num($('#qTape').value);
-    const tapeUnitPrice = num($('#qTapePrice').value);
-    const days = num($('#qDays').value);
-    const frete = num($('#qFrete').value);
-    const montagem = num($('#qMontagem').value);
-    const h3d = num($('#q3d').value);
-
-    const custoCaixaParafuso = num(cfg.caixa_parafuso_preco || 15.00); 
-    const parafusosEstimados = mdfQty * 20; 
-    const custoParafusos = (parafusosEstimados / 100) * custoCaixaParafuso; 
-
-    const insumosBordaCola = custoParafusos + (tapeMeters * 10 * num(cfg.cola_g)) + (tapeMeters * tapeUnitPrice);
-    const desgasteSerra = num(cfg.desgaste_serra_corte || 25.00); 
-    const custosFixosEnergia = days * 8 * (num(cfg.luz_hora) + num(cfg.agua_hora) + num(cfg.maquina_depreciacao_hora));
-    
-    const materiaisDiversos = ferragensTotal + insumosBordaCola + desgasteSerra + custosFixosEnergia;
-    const maoDeObra = days * num(cfg.dia_trabalho);
-    const projeto3D = h3d * num(cfg.custo_hora_3d);
-
-    const custoTotal = mdfTotal + materiaisDiversos + maoDeObra + montagem + frete + projeto3D;
-    const marginPercent = num($('#qMargin').value);
-    const precoFinal = marginPercent < 100 ? custoTotal / (1 - (marginPercent / 100)) : custoTotal;
-    const lucro = precoFinal - custoTotal;
-
-    $('#dMdf').textContent = money(mdfTotal);
-    $('#dIns').textContent = money(materiaisDiversos);
-    $('#dMo').textContent = money(maoDeObra);
-    $('#dMontagem').textContent = money(montagem);
-    $('#dFrete').textContent = money(frete);
-
-    $('#rCost').textContent = money(custoTotal);
-    $('#rProfit').textContent = money(lucro);
-    $('#rPrice').textContent = money(precoFinal);
-
-    return { custoTotal, lucro, precoFinal, mdfTotal, materiaisDiversos };
-  };
-
-  $('#calcQuote').onclick = () => calculate();
-
-  // Emite o PDF sem salvar o orçamento
-  $('#previewPdfBtn').onclick = () => {
-    const calc = calculate();
-    const clientSelect = $('#qClient');
-    const selectedClientOpt = clientSelect.selectedOptions[0];
-    const clienteNome = selectedClientOpt && selectedClientOpt.value 
-      ? selectedClientOpt.textContent 
-      : ($('#qClientName').value || 'Cliente Não Identificado');
-
-    const items = [];
-    const mdfOpt = $('#qMdf').selectedOptions[0];
-    const mdfQty = num($('#qMdfQty').value);
-    if(mdfOpt?.value && mdfQty > 0) {
-      items.push({ descricao: mdfOpt.textContent, quantidade: mdfQty });
-    }
-
-    document.querySelectorAll('.hardware-row').forEach(r => {
-      const o = r.querySelector('.f-select').selectedOptions[0];
-      const q = num(r.querySelector('.f-qty').value);
-      if(o?.value && q > 0){
-        items.push({ descricao: o.textContent.split('—')[0].trim(), quantidade: q });
-      }
-    });
-
-    generatePDFFromData({
-      clienteNome: clienteNome,
-      projeto: $('#qProject').value || 'Projeto Sem Título',
-      prazoEntrega: $('#qDeliveryDays').value || 15,
-      precoFinal: calc.precoFinal,
-      observacoes: $('#qObs').value,
-      items: items
-    });
-  };
-
   $('#quoteForm').onsubmit = async e => {
     e.preventDefault();
-    const calc = calculate();
-    const clienteId = $('#qClient').value || null;
-    const clienteNomeAvulso = $('#qClientName').value || null;
-    const projeto = $('#qProject').value;
-    const observacoes = $('#qObs').value;
+    const mdfOpt = $('#qMdf').selectedOptions[0];
+    const mdfVal = num(mdfOpt?.dataset.price) * num($('#qMdfQty').value);
+    const moVal = num($('#qMo').value);
+    const montVal = num($('#qMontagem').value);
+    const freteVal = num($('#qFrete').value);
+    const total = mdfVal + moVal + montVal + freteVal;
 
     const payload = {
-      cliente_id: clienteId,
-      cliente_nome_avulso: clienteNomeAvulso,
-      projeto: projeto,
-      custo_producao: calc.custoTotal,
-      valor_lucro: calc.lucro,
-      preco_final: calc.precoFinal,
-      observacoes: observacoes,
-      status: existingQuote?.status || 'Pendente'
+      cliente_id: $('#qClient').value || null,
+      cliente_nome_avulso: $('#qClientName').value || null,
+      projeto: $('#qProject').value,
+      valor_mdf: mdfVal,
+      detalhes_mdf: mdfOpt?.textContent || '',
+      valor_mo: moVal,
+      valor_montagem: montVal,
+      valor_frete: freteVal,
+      preco_final: total,
+      status: 'Pendente'
     };
 
-    let quoteId = editId;
-    let error;
-
-    if(editId) {
-      ({ error } = await sb.from('orcamentos').update(payload).eq('id', editId));
-    } else {
-      const { data: newQ, error: err } = await sb.from('orcamentos').insert(payload).select().single();
-      error = err;
-      if(newQ) quoteId = newQ.id;
-    }
-
+    const { data, error } = await sb.from('orcamentos').insert(payload).select().single();
     if(error) return toast(error.message, 'error');
-
-    if(editId) {
-      await sb.from('orcamento_itens').delete().eq('orcamento_id', editId);
-    }
-
-    const itemsToInsert = [];
-    const mdfOpt = $('#qMdf').selectedOptions[0];
-    const mdfQty = num($('#qMdfQty').value);
     
-    if(mdfOpt?.value && mdfQty > 0) {
-      itemsToInsert.push({
-        orcamento_id: quoteId,
-        categoria: 'MDF',
-        descricao: mdfOpt.textContent,
-        quantidade: mdfQty,
-        preco_unitario: num(mdfOpt.dataset.price),
-        preco_total: num(mdfOpt.dataset.price) * mdfQty
-      });
-    }
-
-    document.querySelectorAll('.hardware-row').forEach(r => {
-      const o = r.querySelector('.f-select').selectedOptions[0];
-      const q = num(r.querySelector('.f-qty').value);
-      if(o?.value && q > 0){
-        itemsToInsert.push({
-          orcamento_id: quoteId,
-          categoria: 'Ferragem',
-          descricao: o.textContent.split('—')[0].trim(),
-          quantidade: q,
-          preco_unitario: num(o.dataset.price),
-          preco_total: num(o.dataset.price) * q
-        });
-      }
-    });
-
-    if(itemsToInsert.length > 0) {
-      await sb.from('orcamento_itens').insert(itemsToInsert);
-    }
-
-    toast(editId ? 'Orçamento atualizado com sucesso!' : 'Orçamento salvo com sucesso!');
+    toast('Orçamento salvo!');
+    generatePDF(data.id);
     navigate('historico');
   };
 }
