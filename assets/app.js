@@ -882,7 +882,6 @@ async function generatePDF(id) {
   doc.save(`Orcamento_${id}_${clienteNome}.pdf`);
 }
   // Restante da geração do PDF...
-}
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
