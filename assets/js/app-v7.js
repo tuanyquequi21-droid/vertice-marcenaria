@@ -9,7 +9,10 @@ function dedupeMessageModels(rows){
  });
 }
 const _v6load=load,_v6page=page,_v6dashboard=dashboard,_v6leads=leads,_v6clientes=clientes,_v6orcamentos=orcamentos,_v6relatorios=relatorios,_v6openClient=openClient,_v6openQuote=openQuote,_v6calcQuote=calcQuote,_v6toProduction=toProduction;
-async function v7q(t){let {data,error}=await sb.from(t).select('*');if(error){console.warn('V7',t,error.message);return[]}return data||[]}
+async function v7q(t){
+ if(t==='orcamento_versoes'){let {data,error}=await sb.rpc('listar_orcamento_versoes_seguras');if(error){console.warn('V7',t,error.message);return[]}return Array.isArray(data)?data:[]}
+ let {data,error}=await sb.from(t).select('*');if(error){console.warn('V7',t,error.message);return[]}return data||[]
+}
 load=async function(){await _v6load();[V7.docs,V7.modelos,V7.automacoes,V7.versoes,V7.opcoes,V7.posvenda]=await Promise.all(['cliente_documentos','mensagens_modelo','automacoes_crm','orcamento_versoes','orcamento_opcoes','pos_venda'].map(v7q));V7.modelos=dedupeMessageModels(V7.modelos);await seedV7Templates();V7.modelos=dedupeMessageModels(V7.modelos)}
 page=function(name){$$('nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));let names={dashboard:'Dashboard',leads:'Leads / CRM',clientes:'Clientes',pipeline:'Pipeline',agenda:'Agenda / Retornos',orcamentos:'Orçamentos',producao:'Produção',materiais:'Materiais',custos:'Cadastros e custos',financeiro:'Financeiro',relatorios:'Relatórios',comunicacoes:'Comunicações',posvenda:'Pós-venda'};$('#pageTitle').textContent=names[name]||name;let fn={dashboard,leads,clientes,pipeline,agenda,orcamentos,producao,materiais,custos,financeiro,relatorios,comunicacoes,posvenda}[name]||dashboard;fn()}
 function daysSince(v){if(!v)return 999;return Math.floor((Date.now()-new Date(v).getTime())/86400000)}
@@ -145,3 +148,143 @@ clientes=function(){
  $('#content').innerHTML=`<div class="v72-list-head"><div class=searchbar><input placeholder="Pesquisar cliente por nome, CPF, telefone ou e-mail" oninput="filterRows(this.value)"></div>${v72FilterButtons('cliente',V72_CLIENT_FILTER)}</div>`+
  panel('Clientes',table(['Nome','CPF','Telefone','E-mail','Ações'],rows.map(c=>`<tr class="${c.arquivado?'archived-row':''}"><td><b>${esc(c.nome)}</b>${c.arquivado?'<br><small>Arquivado</small>':''}</td><td>${esc(cpf(c.cpf))}</td><td>${esc(phone(c.telefone))}</td><td>${esc(c.email||'')}</td><td><div class=toolbar><button class="btn small gold" onclick="client360(${c.id})">360º</button><button class="btn small" onclick="openClient(${c.id})">Editar</button><button class="btn small" onclick="chooseMessage('cliente',${c.id})">Mensagem</button><button class="btn small" onclick="openDocument(${c.id})">Documento</button><button class="btn small" onclick="archiveClient(${c.id},${!c.arquivado})">${c.arquivado?'Reativar':'Arquivar'}</button><button class="btn small danger" onclick="deleteClientSafe(${c.id})">Excluir</button></div></td></tr>`).join('')),'<button class="btn gold" onclick="openClient()">+ Cliente</button>');
 }
+
+
+/* ========================= V8 — permissões efetivas + usuários ========================= */
+const V8={perfil:null,permissoes:new Set(),usuarios:[],catalogoPermissoes:[],overrides:[]};
+function can(codigo){return V8.perfil?.papel==='admin'||V8.permissoes.has(codigo)}
+async function loadPermissions(){
+ let {data,error}=await sb.rpc('minhas_permissoes');
+ if(error){console.error('Permissões',error);V8.perfil=null;V8.permissoes=new Set();return false}
+ V8.perfil=data||null;V8.permissoes=new Set(data?.permissoes||[]);return true;
+}
+async function loadUsersV8(){
+ if(!can('usuarios.ver')){V8.usuarios=[];V8.catalogoPermissoes=[];V8.overrides=[];return}
+ let [u,p,o]=await Promise.all([
+  sb.from('perfis').select('user_id,nome,email,papel,ativo,criado_em').order('nome'),
+  sb.from('permissoes').select('codigo,nome,modulo,descricao').order('modulo').order('nome'),
+  sb.from('usuario_permissoes').select('user_id,permissao_codigo,permitido')
+ ]);
+ if(u.error)console.warn('usuarios',u.error.message);if(p.error)console.warn('permissoes',p.error.message);if(o.error)console.warn('overrides',o.error.message);
+ V8.usuarios=u.data||[];V8.catalogoPermissoes=p.data||[];V8.overrides=o.data||[];
+}
+function ensureUsersNav(){
+ let nav=document.querySelector('nav');if(!nav)return;
+ let b=nav.querySelector('[data-page="usuarios"]');
+ if(can('usuarios.ver')){if(!b){b=document.createElement('button');b.dataset.page='usuarios';b.textContent='Usuários e permissões';b.onclick=()=>page('usuarios');nav.appendChild(b)}}else b?.remove();
+}
+function v8AllowedPage(name){let map={dashboard:'dashboard.ver',leads:'crm.ver',pipeline:'crm.ver',clientes:'clientes.ver',agenda:'agenda.ver',orcamentos:'orcamentos.ver',producao:'producao.ver',materiais:'materiais.ver',custos:'configuracoes.ver',financeiro:'financeiro.ver',relatorios:'relatorios.ver',comunicacoes:'crm.ver',posvenda:'posvenda.ver',usuarios:'usuarios.ver'};return !map[name]||can(map[name])}
+function applyPermissionUI(){
+ let map={dashboard:'dashboard.ver',leads:'crm.ver',pipeline:'crm.ver',clientes:'clientes.ver',agenda:'agenda.ver',orcamentos:'orcamentos.ver',producao:'producao.ver',materiais:'materiais.ver',custos:'configuracoes.ver',financeiro:'financeiro.ver',relatorios:'relatorios.ver',comunicacoes:'crm.ver',posvenda:'posvenda.ver',usuarios:'usuarios.ver'};
+ $$('nav button[data-page]').forEach(b=>{let c=map[b.dataset.page];if(c)b.style.display=can(c)?'':'none'});ensureUsersNav();
+}
+const _v8SessionUI=sessionUI;
+sessionUI=async function(s){
+ $('#login').classList.toggle('hidden',!!s);$('#app').classList.toggle('hidden',!s);
+ if(!s){V8.perfil=null;V8.permissoes=new Set();return}
+ if(!await loadPermissions()){await sb.auth.signOut();return}
+ await load();await loadUsersV8();applyPermissionUI();
+ let first=['dashboard','leads','clientes','orcamentos','agenda','producao','materiais','financeiro','relatorios'].find(v8AllowedPage)||'dashboard';page(first);
+}
+const _v8Page=page;
+page=function(name){
+ if(!v8AllowedPage(name)){ $('#pageTitle').textContent='Acesso restrito';$('#content').innerHTML='<div class="panel"><div class="panel-body"><p>Seu usuário não possui permissão para este módulo.</p></div></div>';return }
+ if(name==='usuarios'){usuariosV8();return}
+ _v8Page(name);applyPermissionUI();
+}
+
+/* Orçamentos: custos/lucro/margem aparecem somente para quem possui as permissões. */
+quoteTable=function(arr){
+ let showCost=can('orcamentos.ver_custos'),showProfit=can('orcamentos.ver_lucro');
+ let headers=['Nº','Cliente','Projeto'];if(showCost)headers.push('Custo interno');if(showProfit)headers.push('Lucro');headers.push('Total cliente','Status','Ações');
+ return table(headers,arr.map(o=>{let cells=`<td>#${o.id}</td><td>${esc(o.cliente_nome||'')}</td><td>${esc(o.projeto||'')}</td>`;if(showCost)cells+=`<td>${money(o.custo_producao)}</td>`;if(showProfit)cells+=`<td>${money(o.valor_lucro)}</td>`;let actions=[];if(can('orcamentos.editar'))actions.push(`<button class="btn small" onclick="openQuote(null,${o.id})">Editar</button>`);actions.push(`<button class="btn small" onclick="printQuote(${o.id})">Imprimir</button>`);if(can('producao.criar'))actions.push(`<button class="btn small" onclick="toProduction(${o.id})">Produção</button>`);if(can('orcamentos.excluir'))actions.push(`<button class="btn small danger" onclick="deleteQuote(${o.id})">Excluir</button>`);return `<tr>${cells}<td><b>${money(o.preco_final)}</b></td><td><span class=badge>${esc(o.status)}</span></td><td><div class=toolbar>${actions.join('')}</div></td></tr>`}).join(''));
+}
+orcamentos=function(){
+ let showCost=can('orcamentos.ver_custos'),showProfit=can('orcamentos.ver_lucro'),canMargin=can('orcamentos.alterar_margem');
+ let headers=['Nº','Cliente','Projeto'];if(showCost)headers.push('Custo');if(showProfit)headers.push('Lucro');if(canMargin)headers.push('Margem');headers.push('Total','Status','Versão','Ações');
+ let rows=C.orcamentos.map(o=>{let cells=`<td>#${o.id}</td><td>${esc(o.cliente_nome||'')}</td><td>${esc(o.projeto||'')}</td>`;if(showCost)cells+=`<td>${money(o.custo_producao)}</td>`;if(showProfit)cells+=`<td>${money(o.valor_lucro)}</td>`;if(canMargin){let m=Number(o.margem_lucro||0);cells+=`<td><span class="${m<20?'margin-alert':''}">${m.toFixed(1)}%</span></td>`}let a=[];if(can('orcamentos.editar'))a.push(`<button class="btn small" onclick="openQuote(null,${o.id})">Editar</button>`);a.push(`<button class="btn small" onclick="quoteVersions(${o.id})">Versões</button>`,`<button class="btn small" onclick="quoteOptions(${o.id})">Opções</button>`,`<button class="btn small" onclick="printQuote(${o.id})">Imprimir</button>`,`<button class="btn small" onclick="publicQuoteLink(${o.id})">Link</button>`);if(can('orcamentos.editar'))a.push(`<button class="btn small" onclick="markQuoteSent(${o.id})">Enviado</button>`,`<button class="btn small" onclick="approveQuote(${o.id})">Aprovar</button>`);if(can('producao.criar'))a.push(`<button class="btn small" onclick="toProduction(${o.id})">Produção</button>`);if(can('orcamentos.excluir'))a.push(`<button class="btn small danger" onclick="deleteQuote(${o.id})">Excluir</button>`);return `<tr>${cells}<td><b>${money(o.preco_final)}</b></td><td><span class=badge>${esc(o.status)}</span></td><td>V${o.versao_atual||1}</td><td><div class=toolbar>${a.join('')}</div></td></tr>`}).join('');
+ let add=can('orcamentos.criar')?'<button class="btn gold" onclick="openQuote()">+ Novo orçamento</button>':'';
+ $('#content').innerHTML=`<div class=searchbar><input placeholder="Pesquisar orçamento por nº, cliente, projeto ou status" oninput="filterRows(this.value)"></div>`+panel('Orçamentos',table(headers,rows),add);
+}
+const _v8OpenQuote=openQuote;
+openQuote=async function(leadId=null,id=null){
+ if(id&&!can('orcamentos.editar'))return alert('Seu usuário não possui permissão para editar orçamentos.');
+ if(!id&&!can('orcamentos.criar'))return alert('Seu usuário não possui permissão para criar orçamentos.');
+ /* O formulário atual calcula a proposta a partir de custos internos. Não expomos esses dados a perfis sem permissão. */
+ if(!can('orcamentos.ver_custos'))return alert('Este perfil pode acessar orçamentos, mas o editor de cálculo interno exige permissão de custos. A leitura comercial continua protegida.');
+ await _v8OpenQuote(leadId,id);
+ if(!can('orcamentos.alterar_margem')){let el=$('#qmargem');if(el){el.disabled=true;el.title='Sem permissão para alterar margem'}}
+}
+const _v8DeleteQuote=deleteQuote;
+deleteQuote=async function(id){if(!can('orcamentos.excluir'))return alert('Sem permissão para excluir orçamentos.');return _v8DeleteQuote(id)}
+
+/* Dashboard/relatórios não revelam lucro quando a permissão não existe. */
+const _v8Dashboard=dashboard;
+dashboard=function(){_v8Dashboard();if(!can('orcamentos.ver_lucro'))$$('#content .card.metric').forEach(c=>{if((c.querySelector('span')?.textContent||'').toLowerCase().includes('lucro'))c.remove()})}
+const _v8Relatorios=relatorios;
+relatorios=function(){_v8Relatorios();if(!can('orcamentos.ver_lucro'))$$('#content').forEach(()=>{});}
+
+function roleLabelV8(r){return ({admin:'Administrador',comercial:'Comercial',producao:'Produção',financeiro:'Financeiro',personalizado:'Personalizado'}[r]||r)}
+function usuariosV8(){
+ $('#pageTitle').textContent='Usuários e permissões';
+ if(!can('usuarios.ver'))return;
+ let rows=V8.usuarios.map(u=>`<tr><td><b>${esc(u.nome||'')}</b><br><small>${esc(u.email||'')}</small></td><td>${esc(roleLabelV8(u.papel))}</td><td>${u.ativo?'Ativo':'Inativo'}</td><td><div class=toolbar>${can('usuarios.editar')?`<button class="btn small" onclick="editUserV8('${u.user_id}')">Editar</button>`:''}${can('usuarios.permissoes')?`<button class="btn small" onclick="permissionsV8('${u.user_id}')">Permissões</button>`:''}</div></td></tr>`).join('');
+ let add=can('usuarios.criar')?'<button class="btn gold" onclick="newUserV8()">+ Novo usuário</button>':'';
+ $('#content').innerHTML=panel('Usuários da empresa',table(['Usuário','Perfil','Status','Ações'],rows),add);
+ applyPermissionUI();
+}
+async function newUserV8(){
+ modal('Novo usuário',`<div class=form-grid>${field('Nome','un','text','')}${field('E-mail','ue','email','')}${field('Senha inicial','up','password','')}<label>Perfil<select id=ur>${['comercial','producao','financeiro','personalizado'].concat(V8.perfil?.papel==='admin'?['admin']:[]).map(r=>`<option value="${r}">${roleLabelV8(r)}</option>`).join('')}</select></label></div><p class=muted>A senha deve ter pelo menos 8 caracteres.</p>`,async()=>{let {data,error}=await sb.functions.invoke('manage-user',{body:{action:'create',nome:v('un').trim(),email:v('ue').trim(),papel:v('ur'),password:v('up')}});if(error){let msg=error.message;try{let x=await error.context?.json();msg=x?.error||x?.message||msg}catch(e){}return alert(msg)}closeModal();await loadUsersV8();usuariosV8();alert('Usuário criado com sucesso.')},'Criar usuário');
+}
+async function editUserV8(id){
+ let u=V8.usuarios.find(x=>x.user_id===id);if(!u)return;
+ modal('Editar usuário',`<div class=form-grid>${field('Nome','un','text',u.nome||'')}${field('E-mail','ue','email',u.email||'')}<label>Perfil<select id=ur>${['comercial','producao','financeiro','personalizado','admin'].map(r=>`<option value="${r}" ${r===u.papel?'selected':''}>${roleLabelV8(r)}</option>`).join('')}</select></label><label>Status<select id=ua><option value="true" ${u.ativo?'selected':''}>Ativo</option><option value="false" ${!u.ativo?'selected':''}>Inativo</option></select></label>${field('Nova senha (opcional)','up','password','')}</div><p class=muted>Deixe a nova senha em branco para manter a senha atual. Para trocar, informe pelo menos 8 caracteres. A senha não é exibida nem armazenada no perfil.</p>`,async()=>{let password=v('up');if(password&&password.length<8)return alert('A nova senha deve ter pelo menos 8 caracteres.');let body={action:'update',user_id:id,nome:v('un').trim(),email:v('ue').trim(),papel:v('ur'),ativo:v('ua')==='true'};if(password)body.password=password;let {error}=await sb.functions.invoke('manage-user',{body});if(error){let msg=error.message;try{let x=await error.context?.json();msg=x?.error||x?.message||msg}catch(e){}return alert(msg)}closeModal();await loadUsersV8();usuariosV8();alert(password?'Usuário e senha atualizados.':'Usuário atualizado.');});
+}
+async function permissionsV8(id){
+ let u=V8.usuarios.find(x=>x.user_id===id);if(!u)return;
+ let ov=new Map(V8.overrides.filter(x=>x.user_id===id).map(x=>[x.permissao_codigo,x.permitido]));
+ let groups={};V8.catalogoPermissoes.forEach(p=>(groups[p.modulo||'Outros']??=[]).push(p));
+ let html=Object.entries(groups).map(([g,ps])=>`<div class=section-title>${esc(g)}</div>${ps.map(p=>{let val=ov.has(p.codigo)?String(ov.get(p.codigo)):'padrao';return `<label style="display:grid;grid-template-columns:1fr 180px;gap:12px;align-items:center;margin:8px 0"><span><b>${esc(p.nome||p.codigo)}</b><br><small>${esc(p.descricao||p.codigo)}</small></span><select class=v8perm data-code="${esc(p.codigo)}"><option value="padrao" ${val==='padrao'?'selected':''}>Padrão do perfil</option><option value="true" ${val==='true'?'selected':''}>Permitir</option><option value="false" ${val==='false'?'selected':''}>Bloquear</option></select></label>`}).join('')}`).join('');
+ modal('Permissões — '+esc(u.nome||u.email),html,async()=>{let permissoes=[...$$('.v8perm')].filter(x=>x.value!=='padrao').map(x=>({codigo:x.dataset.code,permitido:x.value==='true'}));let {error}=await sb.functions.invoke('manage-user',{body:{action:'update',user_id:id,permissoes,limpar_permissoes:true}});if(error)return alert(error.message);closeModal();await loadUsersV8();usuariosV8();alert('Permissões atualizadas.')},'Salvar permissões');
+}
+
+/* ============================================================
+   V8.1 - EDITOR COMERCIAL SEGURO
+   Custos e margem são calculados na Edge Function manage-quote.
+   O navegador comercial recebe apenas catálogo sem preços e total de venda.
+   ============================================================ */
+async function invokeQuoteSecureV81(body){
+ const {data,error}=await sb.functions.invoke('manage-quote',{body});
+ if(error){let msg=error.message;try{let x=await error.context?.json();msg=x?.error||x?.message||msg}catch(e){}throw new Error(msg)}
+ if(data?.error)throw new Error(data.error);return data;
+}
+function commercialProjectRowV81(x={}){return `<div class="project-item"><div class=toolbar><input class=q-project-name placeholder="Nome do projeto / móvel" value="${esc(x.nome||'')}"><button type=button class="btn small danger" onclick="this.closest('.project-item').remove()">Remover</button></div><textarea class=q-project-desc placeholder="Descrição do projeto para o cliente">${esc(x.descricao_cliente||'')}</textarea></div>`}
+function addCommercialProjectV81(x={}){$('#projectLines').insertAdjacentHTML('beforeend',commercialProjectRowV81(x))}
+function commercialMaterialRowV81(cat,x={}){let opts=cat.materials.map(m=>`<option value="${m.id}" ${String(m.id)===String(x.material_id)?'selected':''}>${esc(m.nome)} — ${esc(m.unidade||'unidade')}</option>`).join('');return `<div class="line-item commercial-material-line"><select class=q-material><option value="">Selecione um material...</option>${opts}</select><input class=q-mat-qty type=number step=.001 min=0 value="${x.quantidade||1}" placeholder="Quantidade"><button type=button class="btn small danger" onclick="this.closest('.line-item').remove()">×</button></div>`}
+function addCommercialMaterialV81(cat,x={}){$('#materialLines').insertAdjacentHTML('beforeend',commercialMaterialRowV81(cat,x))}
+function commercialLaborRowV81(cat,x={}){let emps=cat.employees.map(e=>`<option value="${e.id}" ${String(e.id)===String(x.funcionario_id)?'selected':''}>${esc(e.nome)}</option>`).join(''),funcs=cat.functions.map(f=>`<option value="${f.id}" ${String(f.id)===String(x.funcao_id)?'selected':''}>${esc(f.nome)} — ${esc(f.unidade||'')}</option>`).join('');return `<div class="labor-card commercial-labor-line"><label>Funcionário<select class=q-employee><option value="">Opcional...</option>${emps}</select></label><label>Função<select class=q-labor><option value="">Selecione...</option>${funcs}</select></label><label>Quantidade de pessoas<input class=q-labor-people type=number min=1 step=1 value="${x.quantidade_pessoas||1}"></label><label>Dias / horas / quantidade<input class=q-labor-time type=number step=.5 min=0 value="${x.quantidade_tempo||1}"></label><button type=button class="btn small danger" onclick="this.closest('.labor-card').remove()">Remover</button></div>`}
+function addCommercialLaborV81(cat,x={}){$('#laborLines').insertAdjacentHTML('beforeend',commercialLaborRowV81(cat,x))}
+function collectCommercialQuoteV81(o,leadId){
+ let projects=[...document.querySelectorAll('.project-item')].map((r,i)=>({nome:r.querySelector('.q-project-name').value.trim(),descricao_cliente:r.querySelector('.q-project-desc').value.trim(),ordem:i})).filter(x=>x.nome);
+ let materials=[...document.querySelectorAll('.commercial-material-line')].map(r=>({material_id:Number(r.querySelector('.q-material').value)||null,quantidade:Number(r.querySelector('.q-mat-qty').value)||0})).filter(x=>x.material_id);
+ let labor=[...document.querySelectorAll('.commercial-labor-line')].map(r=>({funcionario_id:Number(r.querySelector('.q-employee').value)||null,funcao_id:Number(r.querySelector('.q-labor').value)||null,quantidade_pessoas:Number(r.querySelector('.q-labor-people').value)||1,quantidade_tempo:Number(r.querySelector('.q-labor-time').value)||0})).filter(x=>x.funcao_id);
+ return {quote_id:o.id||null,lead_id:leadId||o.lead_id||null,cliente_nome:v('qn'),cliente_cpf:cpf(v('qcpf')),cliente_telefone:phone(v('qtel')),cliente_email:v('qe'),cliente_cep:cep(v('qcep')),cliente_endereco:v('qend'),cliente_numero:v('qnum'),cliente_cidade:v('qcity'),cliente_uf:v('quf'),projects,materials,labor,prazo_entrega_dias:n('qprazo')||null,validade_dias:n('qvalid')||15,forma_pagamento:v('qpay'),numero_parcelas:Math.max(1,Math.round(n('qparc')||1)),observacoes_cliente:v('qobs'),observacoes_internas:v('qint')};
+}
+async function previewCommercialQuoteV81(o,leadId){try{let b=collectCommercialQuoteV81(o,leadId);if(!b.projects.length)return alert('Inclua pelo menos um projeto.');let r=await invokeQuoteSecureV81({...b,action:'preview'});$('#commercialQuoteTotal').innerHTML=`<div class=quote-summary><div><small>Valor da proposta</small><b>${money(r.preco_final)}</b></div>${r.forma_pagamento==='Parcelado'?`<div><small>Parcelamento</small><b>${r.numero_parcelas}x de ${money(r.valor_parcela)}</b></div>`:''}</div><p class=muted>Custos internos, lucro e margem são calculados de forma protegida e não são exibidos neste perfil.</p>`}catch(e){alert(e.message)}}
+async function openCommercialQuoteV81(leadId=null,id=null){
+ let o=C.orcamentos.find(x=>x.id===id)||{},lead=C.leads.find(x=>x.id===leadId)||C.leads.find(x=>x.id===o.lead_id);
+ let cat;try{cat=await invokeQuoteSecureV81({action:'catalog',quote_id:id||null})}catch(e){return alert(e.message)}
+ let d=cat.detail||{projects:[],materials:[],labor:[]};
+ let body=`<div class=section-title>Dados do cliente</div><div class="form-grid three">${field('Nome completo','qn','text',o.cliente_nome||lead?.nome||'')}${field('CPF','qcpf','text',o.cliente_cpf||'')}${field('Telefone','qtel','text',o.cliente_telefone||lead?.telefone||'')}${field('E-mail','qe','email',o.cliente_email||lead?.email||'')}${field('CEP','qcep','text',o.cliente_cep||'')}${field('Endereço','qend','text',o.cliente_endereco||'')}${field('Número','qnum','text',o.cliente_numero||'')}${field('Cidade','qcity','text',o.cliente_cidade||'')}${field('UF','quf','text',o.cliente_uf||'')}</div><div id=clientSuggestions></div><div class=section-title>Projetos / móveis</div><div id=projectLines></div><button type=button class=btn onclick="addCommercialProjectV81()">+ Adicionar projeto</button><div class=section-title>Materiais</div><p class=muted>Selecione os materiais e quantidades. Os preços de custo são protegidos.</p><div id=materialLines></div><button type=button class=btn id=addCommercialMaterial>+ Adicionar material</button><div class=section-title>Mão de obra</div><p class=muted>Informe função e quantidade. Os valores internos são aplicados no servidor.</p><div id=laborLines></div><button type=button class=btn id=addCommercialLabor>+ Adicionar mão de obra</button><div class=section-title>Proposta</div><div class="form-grid three">${field('Prazo de entrega (dias)','qprazo','number',o.prazo_entrega_dias||'')}${field('Validade (dias)','qvalid','number',o.validade_dias||15)}${selectF('Forma de pagamento','qpay',['Pix','Dinheiro','Transferência','Débito','Crédito à vista','Parcelado'],o.forma_pagamento||'Pix')}<div id=installmentFields style="display:${o.forma_pagamento==='Parcelado'?'grid':'none'}">${field('Parcelas','qparc','number',o.numero_parcelas||2)}</div></div><div class=section-title>Observações</div><label>Observações ao cliente<textarea id=qobs>${esc(o.observacoes_cliente||'')}</textarea></label><label style="margin-top:10px">Observações internas<textarea id=qint>${esc(o.observacoes_internas||'')}</textarea></label><div class=toolbar style="margin-top:14px"><button type=button class="btn dark" id=previewCommercialQuote>Calcular proposta</button></div><div id=commercialQuoteTotal>${id?`<div class=quote-summary><div><small>Valor atual da proposta</small><b>${money(o.preco_final)}</b></div></div>`:''}</div>`;
+ modal(id?`Editar orçamento #${id}`:'Novo orçamento',body,async()=>{try{let b=collectCommercialQuoteV81(o,leadId);if(!b.projects.length)return alert('Inclua pelo menos um projeto.');let r=await invokeQuoteSecureV81({...b,action:'save'});closeModal();await load();orcamentos();alert(`Orçamento #${r.id} salvo. Valor da proposta: ${money(r.preco_final)}`)}catch(e){alert(e.message)}},id?'Salvar alterações':'Salvar orçamento');
+ masks('q');$('#qn').oninput=suggestClients;$('#qcpf').onblur=checkCPF;$('#qpay').onchange=()=>{$('#installmentFields').style.display=v('qpay')==='Parcelado'?'grid':'none'};$('#addCommercialMaterial').onclick=()=>addCommercialMaterialV81(cat);$('#addCommercialLabor').onclick=()=>addCommercialLaborV81(cat);$('#previewCommercialQuote').onclick=()=>previewCommercialQuoteV81(o,leadId);
+ (d.projects.length?d.projects:[{nome:o.projeto||lead?.ambiente_interesse||'',descricao_cliente:o.descricao_cliente||''}]).forEach(addCommercialProjectV81);d.materials.forEach(x=>addCommercialMaterialV81(cat,x));d.labor.forEach(x=>addCommercialLaborV81(cat,x));
+}
+const _v81AdminOpenQuote=openQuote;
+openQuote=async function(leadId=null,id=null){
+ if(id&&!can('orcamentos.editar'))return alert('Seu usuário não possui permissão para editar orçamentos.');
+ if(!id&&!can('orcamentos.criar'))return alert('Seu usuário não possui permissão para criar orçamentos.');
+ if(!can('orcamentos.ver_custos'))return openCommercialQuoteV81(leadId,id);
+ return _v81AdminOpenQuote(leadId,id);
+}
+openQuoteForClient=function(id){let c=C.clientes.find(x=>x.id===id);openQuote();setTimeout(()=>{if(c)useClient(c.id)},0)};
