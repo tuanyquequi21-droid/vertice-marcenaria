@@ -1,0 +1,8 @@
+# Segredos/ambiente local
+.env
+.env.*
+!.env.example
+config.local.js
+.DS_Store
+Thumbs.db
+.vscode/settings.json

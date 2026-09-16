@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vértice Gestão</title>
+<link rel="stylesheet" href="assets/css/app-v4.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div id="login" class="login-shell">
+  <form id="loginForm" class="login-card">
+    <div class="brand-mark">V</div>
+    <h1>Vértice Gestão</h1><p>Marcenaria • CRM • Orçamentos • Produção</p>
+    <label>E-mail<input id="loginEmail" type="email" required></label>
+    <label>Senha<input id="loginPassword" type="password" required></label>
+    <button class="btn primary" type="submit">Entrar</button><div id="loginMsg" class="error"></div>
+  </form>
+</div>
+
+<div id="app" class="app hidden">
+<aside id="sidebar" class="sidebar">
+  <div class="brand"><div class="brand-mark small">V</div><div class="brand-text"><b>VÉRTICE</b><span>GESTÃO</span></div></div>
+  <button id="collapseBtn" class="collapse" title="Abrir/fechar menu">☰</button>
+  <nav>
+    <button data-page="dashboard"><span>▦</span><em>Dashboard</em></button>
+    <button data-page="leads"><span>◎</span><em>Leads / CRM</em></button>
+    <button data-page="clientes"><span>♙</span><em>Clientes</em></button>
+    <button data-page="pipeline"><span>▥</span><em>Pipeline</em></button>
+    <button data-page="agenda"><span>◷</span><em>Agenda / Retornos</em></button>
+    <button data-page="orcamentos"><span>▤</span><em>Orçamentos</em></button>
+    <button data-page="producao"><span>⚒</span><em>Produção</em></button>
+    <button data-page="materiais"><span>◇</span><em>Materiais</em></button>
+    <button data-page="custos"><span>⌁</span><em>Cadastros / Custos</em></button>
+    <button data-page="financeiro"><span>R$</span><em>Financeiro</em></button>
+    <button data-page="relatorios"><span>▧</span><em>Relatórios</em></button>
+    <button data-page="comunicacoes"><span>✉</span><em>Comunicações</em></button>
+    <button data-page="posvenda"><span>✓</span><em>Pós-venda</em></button>
+  </nav>
+  <button id="logoutBtn" class="logout"><span>↪</span><em>Sair</em></button>
+</aside>
+<main class="main">
+  <header class="topbar"><div><h2 id="pageTitle">Dashboard</h2><small id="today"></small></div><div class="top-actions"><button class="btn gold" onclick="openLead()">+ Novo lead</button><button class="btn dark" onclick="openQuote()">+ Orçamento</button></div></header>
+  <section id="content" class="content"></section>
+</main>
+</div>
+
+<div id="modal" class="modal hidden"><div class="modal-card"><div class="modal-head"><h3 id="modalTitle"></h3><button onclick="closeModal()">×</button></div><div id="modalBody"></div><div id="modalActions" class="modal-actions"></div></div></div>
+
+<script src="config.js"></script>
+<script src="assets/js/app-v6.js"></script>
+<script src="assets/js/app-v7.js"></script>
+</body>
+</html>

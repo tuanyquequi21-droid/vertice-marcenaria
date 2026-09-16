@@ -1,0 +1,12 @@
+# TESTES V7.2
+- app-v6.js sintaxe: OK
+- app-v7.js sintaxe: OK
+- Arquivar/Reativar cliente: função presente
+- Exclusão segura cliente: função presente + checagem de 6 vínculos
+- Arquivar/Reativar lead: função presente
+- Exclusão segura lead: função presente + checagem de interações/tarefas
+- Filtros Ativos/Arquivados/Todos: presentes
+- Cliente 360º / Mensagens / Documentos: preservados
+- SQL 11: sem DROP TABLE/TRUNCATE
+- config.js: sem credenciais
+- Teste real Supabase/RLS/Storage: requer seu ambiente autenticado
