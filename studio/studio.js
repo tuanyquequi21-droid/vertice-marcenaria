@@ -11,11 +11,12 @@ const material=new THREE.MeshStandardMaterial({color:0xbda889,roughness:.75});
 function addBox(x,y,z,w,h,d){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);group.add(mesh)}
 function draw(p){while(group.children.length){const mesh=group.children[0];group.remove(mesh);mesh.geometry.dispose()}
  const {width:w,height:h,depth:d}=p.dimensions;const t=Number(document.querySelector('[name=thickness]').value),s=Number(document.querySelector('[name=shelves]').value),doors=Number(document.querySelector('[name=doors]').value);
- const W=w/1000,H=h/1000,D=d/1000,T=t/1000;addBox(-W/2+T/2,0,0,T,H,D);addBox(W/2-T/2,0,0,T,H,D);
+ const drawers=Number(document.querySelector('[name=drawers]').value||0);const W=w/1000,H=h/1000,D=d/1000,T=t/1000;addBox(-W/2+T/2,0,0,T,H,D);addBox(W/2-T/2,0,0,T,H,D);
  addBox(0,-H/2+T/2,0,W-2*T,T,D);addBox(0,H/2-T/2,0,W-2*T,T,D);
  for(let i=1;i<=s;i++)addBox(0,-H/2+i*H/(s+1),0,W-2*T,T,D-.006);
  addBox(0,0,-D/2+.003,W,H,.006);
  for(let i=0;i<doors;i++)addBox(-W/2+(i+.5)*W/doors,0,D/2+.012,W/doors-.006,H-.004,T);
+ for(let i=0;i<drawers;i++)addBox(0,-H/2+(i+.5)*H/drawers,D/2+.012,W-.006,H/drawers-.004,T);
  const max=Math.max(W,H,D);camera.position.set(max*1.3,max*.95,max*1.7);camera.lookAt(0,0,0);group.rotation.set(rotation.x,rotation.y,0);render();
 }
 function render(){const width=host.clientWidth||500,height=host.clientHeight||450;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();renderer.render(scene,camera)}
