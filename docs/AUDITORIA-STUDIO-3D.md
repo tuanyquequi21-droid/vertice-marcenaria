@@ -45,3 +45,10 @@ P3: Avaliar importação de planta, reconstrução por fotos, instalações elé
 
 ## Próxima etapa
 Inventariar todos os arquivos e fluxos, verificar esquema SQL, consolidar relatório com gravidade/evidências e construir suíte de testes. Atualizar este documento à medida que a auditoria avançar.
+
+## Revisão incremental — 2026-10-13
+- Confirmado no código V7: há também camada V8/V8.1 com permissões por usuário e orçamento comercial via Edge Function `manage-quote`. Essa camada deve entrar na matriz de preservação; não presumir que o sistema seja apenas V6/V7.
+- `proposta.html` usa RPCs `get_proposta_publica` e `aprovar_proposta_publica`. Verificar política de tokens, expiração, escopo de dados e idempotência do aceite antes de adicionar tours públicos.
+- `financeiro()` na V6 usava `x.valor || x.valor_total`; um valor zero explícito podia ser trocado por `valor_total`. Corrigido na branch com `transactionAmount` e testes em `tests/financeiro.test.cjs`. A correção ainda não foi validada em navegador/banco reais.
+- `convertLead()` na V6 cria cliente e depois atualiza lead em duas operações independentes, sem transação; pode deixar estado parcialmente convertido. Revisar possibilidade de RPC transacional e permissões antes de corrigir.
+- Próxima validação: executar `node --test tests/financeiro.test.cjs`, analisar funções de permissão V8, conferir schema/RLS/RPC e reproduzir os fluxos críticos em ambiente de teste.
