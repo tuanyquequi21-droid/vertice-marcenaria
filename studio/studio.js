@@ -6,17 +6,21 @@ const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(
 const host=document.getElementById('scene');host.appendChild(renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xffffff,0x777777,2));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(2,4,5);scene.add(light);
 const group=new THREE.Group();scene.add(group);
-let project=null,rotation={x:0,y:0},drag=null;
+let project=null,rotation={x:0,y:0},drag=null,showFront=true;
+const fronts=[];
 const material=new THREE.MeshStandardMaterial({color:0xbda889,roughness:.75});
 function addBox(x,y,z,w,h,d){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);group.add(mesh)}
-function draw(p){while(group.children.length){const mesh=group.children[0];group.remove(mesh);mesh.geometry.dispose()}
+function draw(p){fronts.length=0;while(group.children.length){const mesh=group.children[0];group.remove(mesh);mesh.geometry.dispose()}
  const {width:w,height:h,depth:d}=p.dimensions;const t=Number(document.querySelector('[name=thickness]').value),s=Number(document.querySelector('[name=shelves]').value),doors=Number(document.querySelector('[name=doors]').value);
  const drawers=Number(document.querySelector('[name=drawers]').value||0);const W=w/1000,H=h/1000,D=d/1000,T=t/1000;addBox(-W/2+T/2,0,0,T,H,D);addBox(W/2-T/2,0,0,T,H,D);
  addBox(0,-H/2+T/2,0,W-2*T,T,D);addBox(0,H/2-T/2,0,W-2*T,T,D);
  for(let i=1;i<=s;i++)addBox(0,-H/2+i*H/(s+1),0,W-2*T,T,D-.006);
  addBox(0,0,-D/2+.003,W,H,.006);
- for(let i=0;i<doors;i++)addBox(-W/2+(i+.5)*W/doors,0,D/2+.012,W/doors-.006,H-.004,T);
- for(let i=0;i<drawers;i++)addBox(0,-H/2+(i+.5)*H/drawers,D/2+.012,W-.006,H/drawers-.004,T);
+ const DH=p.layout.drawerHeight/1000,PH=p.layout.doorHeight/1000;
+ if(doors&&drawers)addBox(0,-H/2+DH,0,W-2*T,T,D-.006);
+ for(let i=0;i<doors;i++){addBox(-W/2+(i+.5)*W/doors,DH/2,D/2+.012,W/doors-.006,PH-.004,T);fronts.push(group.children[group.children.length-1])}
+ for(let i=0;i<drawers;i++){addBox(0,-H/2+(i+.5)*DH/drawers,D/2+.012,W-.006,DH/drawers-.004,T);fronts.push(group.children[group.children.length-1])}
+ for(const front of fronts)front.visible=showFront;
  const max=Math.max(W,H,D);camera.position.set(max*1.3,max*.95,max*1.7);camera.lookAt(0,0,0);group.rotation.set(rotation.x,rotation.y,0);render();
 }
 function render(){const width=host.clientWidth||500,height=host.clientHeight||450;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();renderer.render(scene,camera)}
@@ -41,3 +45,6 @@ canvas.style.touchAction='none';
 canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId)});
 canvas.addEventListener('pointermove',e=>{if(!drag)return;rotation.y+=(e.clientX-drag.x)*.008;rotation.x=Math.max(-1.4,Math.min(1.4,rotation.x+(e.clientY-drag.y)*.008));drag={x:e.clientX,y:e.clientY};group.rotation.set(rotation.x,rotation.y,0);render()});
 canvas.addEventListener('pointerup',()=>{drag=null});canvas.addEventListener('pointercancel',()=>{drag=null});
+
+// Modo interno: oculta apenas portas e frentes de gaveta, mantendo a estrutura.
+document.getElementById('interior').addEventListener('click',()=>{showFront=!showFront;for(const front of fronts)front.visible=showFront;document.getElementById('interior').textContent=showFront?'Ver parte interna':'Mostrar portas e gavetas';render()});
