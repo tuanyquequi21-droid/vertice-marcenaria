@@ -7,7 +7,7 @@ export function calculateCabinet(input={}){
  if(!Number.isInteger(shelves)||shelves<0||shelves>30)throw new RangeError('Prateleiras inválidas');
  if(!Number.isInteger(doors)||doors<0||doors>12)throw new RangeError('Portas devem ser de 0 a 12');
  const drawers=Number(d.drawers??0),dividers=Number(d.dividers??0);
- if(!Number.isInteger(dividers)||dividers<0||dividers>20)throw new RangeError('Divisórias horizontais devem ser de 0 a 20');
+ if(!Number.isInteger(dividers)||dividers<0||dividers>20)throw new RangeError('Divisórias verticais devem ser de 0 a 20');
  if(!Number.isInteger(drawers)||drawers<0||drawers>12)throw new RangeError('Gavetas devem ser de 0 a 12');
  const drawerHeight=drawers?Math.max(120,Math.min(h*.42,drawers*180)):0;
  const doorHeight=h-drawerHeight;
@@ -20,7 +20,7 @@ export function calculateCabinet(input={}){
   {name:'Base',qty:1,width:w-2*t,height:depth,thickness:t,edgeMm:w-2*t},
   {name:'Tampo',qty:1,width:w-2*t,height:depth,thickness:t,edgeMm:w-2*t},
   ...(shelves?[{name:'Prateleira',qty:shelves,width:w-2*t,height:depth-bt,thickness:t,edgeMm:w-2*t}]:[]),
-  ...(dividers?[{name:'Divisória horizontal adicional',qty:dividers,width:w-2*t,height:depth-bt,thickness:t,edgeMm:w-2*t}]:[]),
+  ...(dividers?[{name:'Divisória vertical adicional',qty:dividers,width:depth-bt,height:h-2*t,thickness:t,edgeMm:h-2*t}]:[]),
   ...(doors&&drawers?[{name:'Divisória horizontal',qty:1,width:w-2*t,height:depth-bt,thickness:t,edgeMm:w-2*t}]:[]),
   {name:'Fundo',qty:1,width:w,height:h,thickness:bt,edgeMm:0},
   ...(doors?[{name:'Porta',qty:doors,width:w/doors-3,height:doorHeight-4,thickness:t,edgeMm:2*(w/doors-3+doorHeight-4)}]:[]),
