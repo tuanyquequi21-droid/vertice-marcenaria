@@ -12,14 +12,16 @@ const material=new THREE.MeshStandardMaterial({color:0xbda889,roughness:.75});
 function addBox(x,y,z,w,h,d){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);group.add(mesh)}
 function draw(p){fronts.length=0;while(group.children.length){const mesh=group.children[0];group.remove(mesh);mesh.geometry.dispose()}
  const {width:w,height:h,depth:d}=p.dimensions;const t=Number(document.querySelector('[name=thickness]').value),s=Number(document.querySelector('[name=shelves]').value),doors=Number(document.querySelector('[name=doors]').value);
- const drawers=Number(document.querySelector('[name=drawers]').value||0);const W=w/1000,H=h/1000,D=d/1000,T=t/1000;addBox(-W/2+T/2,0,0,T,H,D);addBox(W/2-T/2,0,0,T,H,D);
+ const drawers=Number(document.querySelector('[name=drawers]').value||0),dividers=Number(document.querySelector('[name=dividers]').value||0);const W=w/1000,H=h/1000,D=d/1000,T=t/1000;addBox(-W/2+T/2,0,0,T,H,D);addBox(W/2-T/2,0,0,T,H,D);
  addBox(0,-H/2+T/2,0,W-2*T,T,D);addBox(0,H/2-T/2,0,W-2*T,T,D);
  for(let i=1;i<=s;i++)addBox(0,-H/2+i*H/(s+1),0,W-2*T,T,D-.006);
+ for(let i=1;i<=dividers;i++)addBox(0,-H/2+i*H/(dividers+1),0,W-2*T,T,D-.006);
  addBox(0,0,-D/2+.003,W,H,.006);
  const DH=p.layout.drawerHeight/1000,PH=p.layout.doorHeight/1000;
  if(doors&&drawers)addBox(0,-H/2+DH,0,W-2*T,T,D-.006);
  for(let i=0;i<doors;i++){addBox(-W/2+(i+.5)*W/doors,DH/2,D/2+.012,W/doors-.006,PH-.004,T);fronts.push(group.children[group.children.length-1])}
  for(let i=0;i<drawers;i++){addBox(0,-H/2+(i+.5)*DH/drawers,D/2+.012,W-.006,DH/drawers-.004,T);fronts.push(group.children[group.children.length-1])}
+ for(let i=0;i<drawers;i++){const y=-H/2+(i+.5)*DH/drawers,boxH=Math.min(.16,DH/drawers-.05),boxW=(w-4*t-26)/1000,boxD=(d-60)/1000;addBox(-boxW/2,y,0,T,boxH,boxD);addBox(boxW/2,y,0,T,boxH,boxD);addBox(0,y,-boxD/2,boxW,boxH,T);addBox(0,y,boxD/2,boxW,boxH,T);addBox(0,y-boxH/2,0,boxW,.006,boxD)}
  for(const front of fronts)front.visible=showFront;
  const max=Math.max(W,H,D);camera.position.set(max*1.3,max*.95,max*1.7);camera.lookAt(0,0,0);group.rotation.set(rotation.x,rotation.y,0);render();
 }
