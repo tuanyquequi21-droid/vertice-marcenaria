@@ -34,3 +34,13 @@ O snapshot do código principal foi preservado na branch `backup-site-2026-10-13
 4. Criar projetos persistidos, editor com módulos, ferragens e orçamento detalhado.
 5. Implementar compartilhamento somente leitura e testes de acesso.
 6. Expandir importação de planta/fotos e validação de instalações com limites claros.
+
+
+## Recursos adicionais (13/10/2026)
+- Arrastar o modelo com mouse ou toque para girar a visualização.
+- Salvar e recuperar um projeto de armário no armazenamento **local do navegador** (um projeto por navegador).
+- Exportar e importar projeto JSON com validação de parâmetros.
+- Exportar lista preliminar de peças CSV (separador `;`, UTF-8 BOM).
+- Centralizar a visualização.
+
+**Limitações:** dados locais podem ser apagados ao limpar o navegador; faça backup pelo botão Exportar. Não existe sincronização com Supabase nem autenticação no Studio nesta etapa. A lista de peças não é plano de corte otimizado e requer conferência antes da fabricação. Ainda não há teste funcional no navegador ou implantação homologada.
