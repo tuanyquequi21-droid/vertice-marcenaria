@@ -20,8 +20,9 @@ function draw(p){fronts.length=0;while(group.children.length){const mesh=group.c
  const DH=p.layout.drawerHeight/1000,PH=p.layout.doorHeight/1000;
  if(doors&&drawers)addBox(0,-H/2+DH,0,W-2*T,T,D-.006);
  for(let i=0;i<doors;i++){addBox(-W/2+(i+.5)*W/doors,DH/2,D/2+.012,W/doors-.006,PH-.004,T);fronts.push(group.children[group.children.length-1])}
- for(let i=0;i<drawers;i++){addBox(0,-H/2+(i+.5)*DH/drawers,D/2+.012,W-.006,DH/drawers-.004,T);fronts.push(group.children[group.children.length-1])}
- for(let i=0;i<drawers;i++){const y=-H/2+(i+.5)*DH/drawers,boxH=Math.min(.16,DH/drawers-.05),boxW=(w-4*t-26)/1000,boxD=(d-60)/1000;addBox(-boxW/2,y,0,T,boxH,boxD);addBox(boxW/2,y,0,T,boxH,boxD);addBox(0,y,-boxD/2,boxW,boxH,T);addBox(0,y,boxD/2,boxW,boxH,T);addBox(0,y-boxH/2,0,boxW,.006,boxD)}
+ const bayW=p.layout.bayWidth/1000,bayX=-W/2+T+(p.layout.drawerBay-.5)*bayW+(p.layout.drawerBay-1)*T;
+ for(let i=0;i<drawers;i++){addBox(bayX,-H/2+(i+.5)*DH/drawers,D/2+.012,bayW-.006,DH/drawers-.004,T);fronts.push(group.children[group.children.length-1])}
+ for(let i=0;i<drawers;i++){const y=-H/2+(i+.5)*DH/drawers,boxH=Math.min(.16,DH/drawers-.05),boxW=(p.layout.bayWidth-2*t-26)/1000,boxD=(d-60)/1000;addBox(bayX-boxW/2,y,0,T,boxH,boxD);addBox(bayX+boxW/2,y,0,T,boxH,boxD);addBox(bayX,y,-boxD/2,boxW,boxH,T);addBox(bayX,y,boxD/2,boxW,boxH,T);addBox(bayX,y-boxH/2,0,boxW,.006,boxD)}
  for(const front of fronts)front.visible=showFront;
  const max=Math.max(W,H,D);camera.position.set(max*1.3,max*.95,max*1.7);camera.lookAt(0,0,0);group.rotation.set(rotation.x,rotation.y,0);render();
 }
