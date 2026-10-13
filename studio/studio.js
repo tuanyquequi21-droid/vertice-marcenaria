@@ -15,7 +15,7 @@ function draw(p){fronts.length=0;while(group.children.length){const mesh=group.c
  const drawers=Number(document.querySelector('[name=drawers]').value||0),dividers=Number(document.querySelector('[name=dividers]').value||0);const W=w/1000,H=h/1000,D=d/1000,T=t/1000;addBox(-W/2+T/2,0,0,T,H,D);addBox(W/2-T/2,0,0,T,H,D);
  addBox(0,-H/2+T/2,0,W-2*T,T,D);addBox(0,H/2-T/2,0,W-2*T,T,D);
  for(let i=1;i<=s;i++)addBox(0,-H/2+i*H/(s+1),0,W-2*T,T,D-.006);
- for(let i=1;i<=dividers;i++)addBox(0,-H/2+i*H/(dividers+1),0,W-2*T,T,D-.006);
+ for(let i=1;i<=dividers;i++)addBox(-W/2+i*W/(dividers+1),0,0,T,H-2*T,D-.006);
  addBox(0,0,-D/2+.003,W,H,.006);
  const DH=p.layout.drawerHeight/1000,PH=p.layout.doorHeight/1000;
  if(doors&&drawers)addBox(0,-H/2+DH,0,W-2*T,T,D-.006);
