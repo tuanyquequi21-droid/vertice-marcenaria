@@ -196,8 +196,8 @@ function renderPresentationList(){
  presentationModules.forEach((params,i)=>{
   const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid #ddd';
   const name=document.createElement('span');name.style.flex='1';name.textContent='Módulo '+(i+1)+' — '+params.width+' × '+params.height+' × '+params.depth+' mm';
-  const edit=document.createElement('button');edit.type='button';edit.textContent='Editar';edit.onclick=()=>{applyProject({schemaVersion:1,kind:'cabinet',params});presentationPreview=false;presentationGroup.visible=false;group.visible=true;render();presentationReport('Módulo '+(i+1)+' carregado. Após alterar, clique em “Substituir módulo” para atualizar a apresentação.');selectedPresentationIndex=i};
-  const remove=document.createElement('button');remove.type='button';remove.textContent='Remover';remove.onclick=()=>{presentationModules.splice(i,1);selectedPresentationIndex=-1;renderPresentationList();if(presentationPreview)drawPresentation();};
+  const edit=document.createElement('button');edit.type='button';edit.textContent='Editar';edit.onclick=()=>{applyProject({schemaVersion:1,kind:'cabinet',params});presentationPreview=false;presentationGroup.visible=false;group.visible=true;render();presentationReport('Módulo '+(i+1)+' carregado. Após alterar, clique em “Substituir módulo” para atualizar a apresentação.');selectedPresentationIndex=i;document.getElementById('add-presentation-module').textContent='Substituir módulo selecionado'};
+  const remove=document.createElement('button');remove.type='button';remove.textContent='Remover';remove.onclick=()=>{presentationModules.splice(i,1);selectedPresentationIndex=-1;document.getElementById('add-presentation-module').textContent='Adicionar móvel atual';renderPresentationList();if(presentationPreview)drawPresentation();};
   row.append(name,edit,remove);list.append(row);
  });
  presentationCount.textContent=presentationModules.length+' módulo(s) na apresentação.';
@@ -232,7 +232,7 @@ function drawPresentation(){
 document.getElementById('add-presentation-module').addEventListener('click',()=>{
  try{
   const params=Object.fromEntries(new FormData(document.getElementById('form')));calculateCabinet(params);
-  if(selectedPresentationIndex>=0){presentationModules[selectedPresentationIndex]=params;selectedPresentationIndex=-1;presentationReport('Módulo atualizado na apresentação.')}
+  if(selectedPresentationIndex>=0){presentationModules[selectedPresentationIndex]=params;selectedPresentationIndex=-1;document.getElementById('add-presentation-module').textContent='Adicionar móvel atual';presentationReport('Módulo atualizado na apresentação.')}
   else{
    if(presentationModules.some(m=>JSON.stringify(m)===JSON.stringify(params)))return presentationReport('Este móvel já está na apresentação. Altere as medidas ou selecione “Editar” para substituir um módulo.');
    if(presentationModules.length>=15)throw Error('Limite de 15 módulos por apresentação.');
@@ -242,7 +242,7 @@ document.getElementById('add-presentation-module').addEventListener('click',()=>
  }catch(e){presentationReport(e.message)}
 });
 document.getElementById('clear-presentation').addEventListener('click',()=>{
- presentationModules.length=0;selectedPresentationIndex=-1;renderPresentationList();
+ presentationModules.length=0;selectedPresentationIndex=-1;document.getElementById('add-presentation-module').textContent='Adicionar móvel atual';renderPresentationList();
  presentationPreview=false;presentationGroup.visible=false;group.visible=true;resetCamera();presentationReport('Módulos removidos da apresentação.');
 });
 document.getElementById('preview-presentation').addEventListener('click',()=>{
