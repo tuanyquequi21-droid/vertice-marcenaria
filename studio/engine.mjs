@@ -1,6 +1,31 @@
 // Vértice Studio 3D — núcleo independente, sem acesso ao banco de produção.
 export const DEFAULTS = Object.freeze({width:800,height:2200,depth:550,thickness:18,backThickness:6,shelves:3,doors:2,doorType:'hinged',doorSwing:'left',drawers:0,dividers:0,pricePerM2:120,edgePricePerM:3,wastePercent:15});
 export function positive(value,name){const n=Number(value);if(!Number.isFinite(n)||n<=0)throw new RangeError(name+' deve ser maior que zero');return n}
+// Quantitativos preliminares de ferragens; regras ajustáveis antes da compra.
+export function calculateHardware(input={}){
+ const d={...DEFAULTS,...input},doors=Number(d.doors),drawers=Number(d.drawers),height=Number(d.height),width=Number(d.width);
+ const type=String(d.doorType||'hinged');
+ if(!Number.isInteger(doors)||doors<0||doors>12||!Number.isInteger(drawers)||drawers<0||drawers>12||height<=0||width<=0)throw new RangeError('Medidas ou quantidades inválidas');
+ const list=[];
+ const add=(code,label,quantity,unit='un')=>{if(quantity>0)list.push({code,label,quantity,unit})};
+ if(type==='hinged'){
+  const perDoor=height>1800?4:height>900?3:2;
+  add('hinge-cup-35','Dobradiça caneco 35 mm',doors*perDoor);
+  add('hinge-plate','Calço/base de dobradiça',doors*perDoor);
+ }else if(type==='flap-down'){
+  add('flap-hinge','Dobradiça para porta basculante inferior',doors*2);
+  add('flap-stay','Limitador / braço de sustentação para abertura inferior',doors*2);
+ }else if(type==='sliding'){
+  add('sliding-upper-track','Trilho superior para porta de correr',width/1000,'m');
+  add('sliding-lower-track','Trilho inferior para porta de correr',width/1000,'m');
+  add('sliding-roller','Roldana / carro para porta de correr',doors*2);
+  add('sliding-stop','Batente / limitador de porta de correr',doors*2);
+ }
+ add('door-handle','Puxador de porta',doors);
+ add('drawer-slide-pair','Par de corrediças para gaveta',drawers,'par');
+ add('drawer-handle','Puxador de gaveta',drawers);
+ return list;
+}
 export function calculateCabinet(input={}){
  const d={...DEFAULTS,...input},w=positive(d.width,'Largura'),h=positive(d.height,'Altura'),depth=positive(d.depth,'Profundidade'),t=positive(d.thickness,'Espessura'),bt=positive(d.backThickness,'Fundo');
  const shelves=Number(d.shelves),doors=Number(d.doors),waste=Number(d.wastePercent);
@@ -39,5 +64,5 @@ export function calculateCabinet(input={}){
  const edgeM=parts.reduce((sum,p)=>sum+p.qty*p.edgeMm/1000,0);
  const price=positive(d.pricePerM2,'Preço por m²'),edgePrice=Number(d.edgePricePerM);
  if(!Number.isFinite(edgePrice)||edgePrice<0)throw new RangeError('Preço da fita inválido');
- return {dimensions:{width:w,height:h,depth},layout:{drawerHeight,doorHeight,bayWidth,drawerBay,bays,doorType,doorSwing},parts,areaM2,edgeM,estimatedMaterialCost:areaM2*(1+waste/100)*price+edgeM*edgePrice,assumptions:['Medidas em mm','Custo estimado sem ferragens, mão de obra, usinagem ou plano de corte otimizado','Caixas de gaveta são estimativas: conferir corrediças, folgas e montagem antes da fabricação']};
+ return {hardware:calculateHardware(d),dimensions:{width:w,height:h,depth},layout:{drawerHeight,doorHeight,bayWidth,drawerBay,bays,doorType,doorSwing},parts,areaM2,edgeM,estimatedMaterialCost:areaM2*(1+waste/100)*price+edgeM*edgePrice,assumptions:['Medidas em mm','Ferragens calculadas apenas em quantidades; modelos, cargas e compatibilidade exigem revisão técnica','Caixas de gaveta são estimativas: conferir corrediças, folgas e montagem antes da fabricação']};
 }
