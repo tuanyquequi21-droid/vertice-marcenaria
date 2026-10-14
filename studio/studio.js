@@ -136,9 +136,23 @@ canvas.addEventListener('pointermove',e=>{
 function releasePointer(e){pointers.delete(e.pointerId);drag=null}
 canvas.addEventListener('pointerup',releasePointer);
 canvas.addEventListener('pointercancel',releasePointer);
-for(const [id,dx,dy] of [['panleft',65,0],['panright',-65,0],['panup',0,65],['pandown',0,-65]]){
+// Setas: deslocamento visível em unidades do mundo, independente da escala de pixels.
+for(const [id,h,v,label] of [
+ ['panleft',-1,0,'esquerda'],['panright',1,0,'direita'],
+ ['panup',0,1,'cima'],['pandown',0,-1,'baixo']
+]){
  const control=document.getElementById(id);
- if(control)control.addEventListener('click',e=>{e.preventDefault();panCamera(dx,dy)});
+ if(!control)continue;
+ control.addEventListener('click',e=>{
+  e.preventDefault();
+  const step=Math.max(.12,viewDistance*.16);
+  const right=new THREE.Vector3(Math.cos(viewAzimuth),0,-Math.sin(viewAzimuth));
+  const up=new THREE.Vector3(0,1,0);
+  viewTarget.addScaledVector(right,h*step).addScaledVector(up,v*step);
+  updateCamera();
+  const status=document.getElementById('status');
+  if(status)status.textContent='Vista deslocada para '+label+'.';
+ });
 }
 canvas.addEventListener('wheel',e=>{e.preventDefault();if(e.shiftKey)panCamera(e.deltaX*.35,e.deltaY*.35);else zoomCamera(Math.exp(THREE.MathUtils.clamp(e.deltaY,-120,120)*.002))},{passive:false});
 
