@@ -84,7 +84,7 @@ function panCamera(dx,dy){
 function render(){const width=host.clientWidth||500,height=host.clientHeight||450;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();renderer.render(scene,camera)}
 new ResizeObserver(render).observe(host);
 document.getElementById('form').addEventListener('submit',e=>{e.preventDefault();try{const data=Object.fromEntries(new FormData(e.target));const p=calculateCabinet(data);project={schemaVersion:1,kind:'cabinet',params:data};draw(p);document.getElementById('error').textContent='';document.getElementById('totals').textContent='Área: '+p.areaM2.toFixed(2)+' m² | Fita: '+p.edgeM.toFixed(2)+' m | Materiais estimados: '+p.estimatedMaterialCost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});document.getElementById('hardware').replaceChildren(...p.hardware.map(item=>{const tr=document.createElement('tr');for(const value of [item.label,item.quantity,item.unit]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}));document.getElementById('parts').replaceChildren(...p.parts.map(part=>{const tr=document.createElement('tr');for(const value of [part.name,part.qty,part.width.toFixed(1)+' × '+part.height.toFixed(1)+' × '+part.thickness]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}))}catch(err){document.getElementById('error').textContent=err.message}});
-document.getElementById('form').requestSubmit();
+queueMicrotask(()=>document.getElementById('form').requestSubmit());
 document.getElementById('doorSwingField').hidden=false;
 document.getElementById('flapLayoutField').hidden=true;
 
@@ -331,7 +331,7 @@ function syncInteractionMode(){
 }
 document.getElementById('mode-view').onclick=()=>{interactionMode='view';movingPointer=null;syncInteractionMode()};
 document.getElementById('mode-move').onclick=()=>{
- if(!presentationModules.length)return presentationReport('Primeiro adicione um móvel à apresentação.');
+ if(!presentationModules.length){const add=document.getElementById('add-presentation-module');add.click();if(!presentationModules.length)return presentationReport('Não foi possível adicionar o móvel. Confira as medidas.');}
  if(!presentationPreview)drawPresentation();
  interactionMode='move';syncInteractionMode();selectMoveModule(Number(document.getElementById('placement-module').value)||0);
 };
@@ -352,9 +352,10 @@ drawPresentation=function(){
 };
 document.getElementById('placement-module').addEventListener('change',()=>{if(presentationPreview)selectMoveModule(Number(document.getElementById('placement-module').value))});
 function moveDepth(delta){
+ if(!presentationModules.length){document.getElementById('add-presentation-module').click();if(!presentationModules.length)return presentationReport('Adicione um móvel para ajustar a profundidade.');}
  const i=Number(document.getElementById('placement-module').value);
  if(!presentationModules[i])return presentationReport('Selecione um módulo.');
- const p={...placementFor(i)};p.z=Math.round((p.z+delta)/10)*10;presentationPlacements[i]=p;
+ if(!presentationPreview)drawPresentation();const p={...placementFor(i)};p.z=Math.round((p.z+delta)/10)*10;presentationPlacements[i]=p;
  drawPresentation();loadPlacement();presentationReport('Profundidade do módulo: '+p.z+' mm.');
 }
 document.getElementById('move-depth-back').onclick=()=>moveDepth(-100);
@@ -389,7 +390,7 @@ canvas.addEventListener('pointermove',e=>{
  p.z=Math.round((p.z+(dx*right.z-dy*up.z)*scale)/10)*10;
  presentationPlacements[movingPointer.index]=p;
  const g=presentationGroup.children[movingPointer.index];
- if(g){g.position.set(g.position.x+(dx*right.x-dy*up.x)*scale/1000,g.position.y+(-dx*right.y+dy*up.y)*scale/1000,g.position.z+(dx*right.z-dy*up.z)*scale/1000)}
+ if(g){const baseline=-presentationModules.reduce((s,m)=>s+Number(m.width)/1000,0)/2-(presentationModules.length-1)*.03+presentationModules.slice(0,movingPointer.index).reduce((s,m)=>s+Number(m.width)/1000+.06,0)+Number(presentationModules[movingPointer.index].width)/2000;g.position.set(baseline+p.x/1000,p.y/1000,p.z/1000)}
  if(selectedOutline&&g)selectedOutline.update();loadPlacement();render();
 },true);
 function stopMoving(e){if(!movingPointer||e.pointerId!==movingPointer.id)return;e.stopImmediatePropagation();movingPointer=null;drawPresentation();presentationReport('Módulo posicionado. Use os botões de profundidade para ajustar a distância.')}
