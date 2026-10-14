@@ -230,9 +230,9 @@ function drawPresentation(){
  while(presentationGroup.children.length){const child=presentationGroup.children[0];presentationGroup.remove(child);child.traverse(o=>{if(o.geometry)o.geometry.dispose()})}
  let total=0,maxHeight=0;const data=presentationModules.map(params=>{const p=calculateCabinet(params);total+=p.dimensions.width/1000;maxHeight=Math.max(maxHeight,p.dimensions.height/1000);return {params,p}});
  total+=Math.max(0,data.length-1)*.06;let offset=-total/2;
- for(const {params,p} of data){
+ for(const [index,{params,p}] of data.entries()){
   const w=p.dimensions.width/1000,h=p.dimensions.height/1000,d=p.dimensions.depth/1000,t=Number(params.thickness)/1000;
-  const index=data.findIndex(item=>item.params===params),placement=placementFor(index);
+  const placement=placementFor(index);
   const g=new THREE.Group();g.position.set(offset+w/2+placement.x/1000,placement.y/1000,placement.z/1000);g.rotation.y=THREE.MathUtils.degToRad(placement.rotation);presentationGroup.add(g);offset+=w+.06;
   presentationBox(g,-w/2+t/2,0,0,t,h,d);presentationBox(g,w/2-t/2,0,0,t,h,d);
   presentationBox(g,0,-h/2+t/2,0,w-2*t,t,d);presentationBox(g,0,h/2-t/2,0,w-2*t,t,d);presentationBox(g,0,0,-d/2+.003,w,h,.006);
@@ -241,9 +241,9 @@ function drawPresentation(){
   const div=Number(params.dividers||0);
   for(let j=1;j<=div;j++)presentationBox(g,-w/2+t+j*p.layout.bayWidth/1000+(j-.5)*t,0,0,t,h-2*t,d-.006);
   const doors=Number(params.doors||0),dh=p.layout.drawerHeight/1000,ph=p.layout.doorHeight/1000,stack=p.layout.doorType==='flap-down'&&p.layout.flapLayout!=='horizontal';
-  for(let j=0;j<doors;j++)presentationBox(g,stack?0:-w/2+(j+.5)*w/doors,stack?dh/2-ph/2+(j+.5)*ph/doors:dh/2,d/2+.012,stack?w-.006:w/doors-.006,stack?ph/doors-.004:ph-.004,t);
+  for(let j=0;j<doors;j++){presentationBox(g,stack?0:-w/2+(j+.5)*w/doors,stack?dh/2-ph/2+(j+.5)*ph/doors:dh/2,d/2+.012,stack?w-.006:w/doors-.006,stack?ph/doors-.004:ph-.004,t);const front=g.children[g.children.length-1];front.userData.partType='door';if(componentColorsActive)front.material=doorMaterial;}
   const drawers=Number(params.drawers||0),bayX=-w/2+t+(p.layout.drawerBay-.5)*p.layout.bayWidth/1000+(p.layout.drawerBay-1)*t;
-  for(let j=0;j<drawers;j++)presentationBox(g,bayX,-h/2+(j+.5)*dh/drawers,d/2+.012,p.layout.bayWidth/1000-.006,dh/drawers-.004,t);
+  for(let j=0;j<drawers;j++){presentationBox(g,bayX,-h/2+(j+.5)*dh/drawers,d/2+.012,p.layout.bayWidth/1000-.006,dh/drawers-.004,t);const front=g.children[g.children.length-1];front.userData.partType='drawer';if(componentColorsActive)front.material=drawerMaterial;}
  }
  presentationPreview=true;group.visible=false;presentationGroup.visible=true;
  const bounds=new THREE.Box3().setFromObject(presentationGroup),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
