@@ -73,10 +73,13 @@ function updateCamera(){
 function resetCamera(){viewTarget.set(0,0,0);viewAzimuth=.48;viewElevation=.22;viewDistance=cameraFitDistance();updateCamera();}
 function zoomCamera(factor){viewDistance*=factor;updateCamera();}
 function panCamera(dx,dy){
- const right=new THREE.Vector3().setFromMatrixColumn(camera.matrix,0);
- const up=new THREE.Vector3().setFromMatrixColumn(camera.matrix,1);
+ // Use the current camera orientation, not its local transform matrix.
+ camera.updateMatrixWorld(true);
+ const right=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+ const up=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
  const scale=2*viewDistance*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)/(host.clientHeight||450);
- viewTarget.addScaledVector(right,-dx*scale).addScaledVector(up,dy*scale);updateCamera();
+ viewTarget.addScaledVector(right,-dx*scale).addScaledVector(up,dy*scale);
+ updateCamera();
 }
 function render(){const width=host.clientWidth||500,height=host.clientHeight||450;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();renderer.render(scene,camera)}
 new ResizeObserver(render).observe(host);
@@ -133,8 +136,9 @@ canvas.addEventListener('pointermove',e=>{
 function releasePointer(e){pointers.delete(e.pointerId);drag=null}
 canvas.addEventListener('pointerup',releasePointer);
 canvas.addEventListener('pointercancel',releasePointer);
-for(const [id,dx,dy] of [['panleft',-50,0],['panright',50,0],['panup',0,-50],['pandown',0,50]]){
- document.getElementById(id).addEventListener('click',()=>panCamera(dx,dy));
+for(const [id,dx,dy] of [['panleft',65,0],['panright',-65,0],['panup',0,65],['pandown',0,-65]]){
+ const control=document.getElementById(id);
+ if(control)control.addEventListener('click',e=>{e.preventDefault();panCamera(dx,dy)});
 }
 canvas.addEventListener('wheel',e=>{e.preventDefault();if(e.shiftKey)panCamera(e.deltaX*.35,e.deltaY*.35);else zoomCamera(Math.exp(THREE.MathUtils.clamp(e.deltaY,-120,120)*.002))},{passive:false});
 
