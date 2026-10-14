@@ -10,7 +10,14 @@ let project=null,rotation={x:0,y:0},drag=null,showFront=true,doorsOpened=false,d
 let viewDistance=3,viewTarget=new THREE.Vector3(),viewAzimuth=.48,viewElevation=.22,modelSize=2,modelWidth=.8,modelHeight=2.2,modelDepth=.55;
 const fronts=[];
 const material=new THREE.MeshStandardMaterial({color:0xbda889,roughness:.75});
-function addBox(x,y,z,w,h,d){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh)}
+const bodyMaterial=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.75});
+const doorMaterial=new THREE.MeshStandardMaterial({color:'#bda889',roughness:.75});
+const drawerMaterial=new THREE.MeshStandardMaterial({color:'#bda889',roughness:.75});
+let componentColorsActive=false;
+function componentColors(){return {body:'#'+bodyMaterial.color.getHexString(),doors:'#'+doorMaterial.color.getHexString(),drawers:'#'+drawerMaterial.color.getHexString()}}
+function applyComponentColors(colors){for(const [key,mat] of [['body',bodyMaterial],['doors',doorMaterial],['drawers',drawerMaterial]]){const value=colors?.[key];if(/^#[0-9a-fA-F]{6}$/.test(value||'')){mat.color.set(value);document.getElementById('cabinet-'+(key==='doors'?'door':key==='drawers'?'drawer':'body')+'-color').value=value}}componentColorsActive=true;for(const mesh of group.children){if(mesh.userData.partType)mesh.material=mesh.userData.partType==='door'?doorMaterial:mesh.userData.partType==='drawer'?drawerMaterial:bodyMaterial}for(const g of presentationGroup.children){g.traverse(o=>{if(o.isMesh&&o.userData.partType)o.material=o.userData.partType==='door'?doorMaterial:o.userData.partType==='drawer'?drawerMaterial:bodyMaterial})}render()}
+
+function addBox(x,y,z,w,h,d){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.partType='body';group.add(mesh)}
 function draw(p){presentationPreview=false;presentationGroup.visible=false;group.visible=true;fronts.length=0;doorMeta=[];doorsOpened=false;while(group.children.length){const mesh=group.children[0];group.remove(mesh);mesh.geometry.dispose()}
  const {width:w,height:h,depth:d}=p.dimensions;const t=Number(document.querySelector('[name=thickness]').value),s=Number(document.querySelector('[name=shelves]').value),doors=Number(document.querySelector('[name=doors]').value);
  const drawers=Number(document.querySelector('[name=drawers]').value||0),dividers=Number(document.querySelector('[name=dividers]').value||0);const W=w/1000,H=h/1000,D=d/1000,T=t/1000;addBox(-W/2+T/2,0,0,T,H,D);addBox(W/2-T/2,0,0,T,H,D);
@@ -28,12 +35,13 @@ function draw(p){presentationPreview=false;presentationGroup.visible=false;group
   const y=stacked?DH/2-PH/2+(i+.5)*PH/doors:DH/2;
   const z=D/2+.012+(type==='sliding'?(i%2)*(.012+T):0);
   addBox(x,y,z,panelW,panelH,T);
-  const mesh=group.children[group.children.length-1];fronts.push(mesh);
+  const mesh=group.children[group.children.length-1];mesh.userData.partType='door';if(componentColorsActive)mesh.material=doorMaterial;fronts.push(mesh);
   doorMeta.push({mesh,type,index:i,closed:{x,y,z},width:panelW,height:panelH,swing:doors===2&&type==='hinged'?(i===0?'left':'right'):p.layout.doorSwing});
  }
  const bayW=p.layout.bayWidth/1000,bayX=-W/2+T+(p.layout.drawerBay-.5)*bayW+(p.layout.drawerBay-1)*T;
- for(let i=0;i<drawers;i++){addBox(bayX,-H/2+(i+.5)*DH/drawers,D/2+.012,bayW-.006,DH/drawers-.004,T);fronts.push(group.children[group.children.length-1])}
+ for(let i=0;i<drawers;i++){addBox(bayX,-H/2+(i+.5)*DH/drawers,D/2+.012,bayW-.006,DH/drawers-.004,T);group.children[group.children.length-1].userData.partType='drawer';if(componentColorsActive)group.children[group.children.length-1].material=drawerMaterial;fronts.push(group.children[group.children.length-1])}
  for(let i=0;i<drawers;i++){const y=-H/2+(i+.5)*DH/drawers,boxH=Math.min(.16,DH/drawers-.05),boxW=(p.layout.bayWidth-2*t-26)/1000,boxD=(d-60)/1000;addBox(bayX-boxW/2,y,0,T,boxH,boxD);addBox(bayX+boxW/2,y,0,T,boxH,boxD);addBox(bayX,y,-boxD/2,boxW,boxH,T);addBox(bayX,y,boxD/2,boxW,boxH,T);addBox(bayX,y-boxH/2,0,boxW,.006,boxD)}
+ if(componentColorsActive)for(const mesh of group.children)if(mesh.userData.partType==='body')mesh.material=bodyMaterial;
  for(const front of fronts)front.visible=showFront;
  modelSize=Math.sqrt(W*W+H*H+D*D);modelWidth=W;modelHeight=H;modelDepth=D;resetCamera();document.getElementById('previewDoors').textContent='Simular abertura das portas';render();
 }
@@ -216,7 +224,7 @@ document.getElementById('apply-placement').addEventListener('click',()=>{const i
 document.getElementById('view-placement').addEventListener('click',()=>{viewAzimuth=.48;viewElevation=.22;updateCamera()});
 function presentationBox(parent,x,y,z,w,h,d){
  if(w<=0||h<=0||d<=0)return;
- const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);
+ const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),componentColorsActive?bodyMaterial:material);mesh.userData.partType='body';mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);
 }
 function drawPresentation(){
  while(presentationGroup.children.length){const child=presentationGroup.children[0];presentationGroup.remove(child);child.traverse(o=>{if(o.geometry)o.geometry.dispose()})}
@@ -287,7 +295,7 @@ function syncCurrentCabinetForSharing(){
 }
 document.getElementById('create-presentation-link').addEventListener('click',()=>{
  try{syncCurrentCabinetForSharing();if(!presentationModules.length)throw Error('Adicione pelo menos um móvel à apresentação.');
- const payload={version:1,title:document.getElementById('presentation-title').value.trim().slice(0,100),modules:presentationModules,placements:presentationPlacements,labels:presentationLabels,finish:{color:'#'+material.color.getHexString(),image:activeShareFinishImage||null}};
+ const payload={version:1,title:document.getElementById('presentation-title').value.trim().slice(0,100),modules:presentationModules,placements:presentationPlacements,labels:presentationLabels,finish:{color:'#'+material.color.getHexString(),image:componentColorsActive?null:(activeShareFinishImage||null)},componentColors:componentColorsActive?componentColors():null};
  const bytes=new TextEncoder().encode(JSON.stringify(payload));let binary='';for(const b of bytes)binary+=String.fromCharCode(b);
  const token=btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
  if(token.length>15000)throw Error('O link ficou grande demais para incluir a textura. Utilize um acabamento de cor sólida ou aguarde o compartilhamento de imagens na nuvem.');
@@ -611,3 +619,29 @@ legacyImport.addEventListener('change',async e=>{
  catch(err){report('Falha na importação: '+err.message)}
  finally{e.target.value=''}
 },true);
+
+document.getElementById('apply-component-colors').addEventListener('click',()=>{
+ applyComponentColors({body:document.getElementById('cabinet-body-color').value,doors:document.getElementById('cabinet-door-color').value,drawers:document.getElementById('cabinet-drawer-color').value});
+ presentationReport('Cores de estrutura, portas e gavetas aplicadas. Gere um novo link 3D.');
+});
+document.getElementById('align-modules').addEventListener('click',()=>{
+ if(!presentationModules.length)return presentationReport('Adicione móveis antes de alinhar.');
+ let x=0;
+ for(let i=0;i<presentationModules.length;i++){
+  const p=placementFor(i);
+  presentationPlacements[i]={...p,x:Math.round(x),y:0,z:0,rotation:0};
+  x+=Number(presentationModules[i].width)||0;
+ }
+ renderPresentationList();drawPresentation();
+ presentationReport('Módulos alinhados em sequência, sem espaçamento adicional.');
+});
+document.getElementById('duplicate-selected').addEventListener('click',()=>{
+ const i=Number(document.getElementById('placement-module').value);
+ if(!presentationModules[i])return presentationReport('Selecione um módulo para duplicar.');
+ if(presentationModules.length>=15)return presentationReport('Limite de 15 módulos.');
+ presentationModules.push({...presentationModules[i]});
+ presentationLabels.push({...presentationLabels[i],name:(presentationLabels[i]?.name||'Módulo')+' cópia'});
+ presentationPlacements.push({...placementFor(i),x:(Number(placementFor(i).x)||0)+Number(presentationModules[i].width)});
+ renderPresentationList();document.getElementById('placement-module').value=String(presentationModules.length-1);
+ drawPresentation();presentationReport('Módulo duplicado.');
+});
