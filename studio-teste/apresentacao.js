@@ -1,6 +1,29 @@
 import {calculateCabinet} from './engine.mjs';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
+import {RoundedBoxGeometry} from 'https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/geometries/RoundedBoxGeometry.js';
 const host=document.getElementById('scene'),error=document.getElementById('error');
+// Bordas discretamente arredondadas simulam a quina real do MDF com fita de borda.
+const cabinetGeometryCache=new Map();
+function cabinetGeometry(w,h,d){
+ const key=[w,h,d].map(v=>v.toFixed(5)).join('|');
+ if(!cabinetGeometryCache.has(key)){
+  const radius=Math.min(.0015,Math.min(w,h,d)*.18);
+  cabinetGeometryCache.set(key,new RoundedBoxGeometry(w,h,d,2,radius));
+ }
+ return cabinetGeometryCache.get(key);
+}
+// Textura microgranulada procedural para quebrar a aparência artificial de superfícies lisas.
+const grainCanvas=document.createElement('canvas');grainCanvas.width=128;grainCanvas.height=128;
+const grainContext=grainCanvas.getContext('2d'),grainPixels=grainContext.createImageData(128,128);
+for(let y=0;y<128;y++)for(let x=0;x<128;x++){
+ const i=(y*128+x)*4;
+ const v=192+Math.floor(14*Math.sin(y*.83+x*.12)+12*Math.sin(y*.17)+8*Math.sin(x*1.7+y*.21));
+ grainPixels.data[i]=grainPixels.data[i+1]=grainPixels.data[i+2]=Math.max(0,Math.min(255,v));
+ grainPixels.data[i+3]=255;
+}
+grainContext.putImageData(grainPixels,0,0);
+const microBump=new THREE.CanvasTexture(grainCanvas);microBump.wrapS=microBump.wrapT=THREE.RepeatWrapping;microBump.repeat.set(3,3);
+function finishSurface(mat){mat.bumpMap=microBump;mat.bumpScale=.00018;mat.roughness=.62;mat.metalness=0;mat.needsUpdate=true}
 const scene=new THREE.Scene();scene.background=new THREE.Color('#34383d');
 const camera=new THREE.PerspectiveCamera(42,1,.05,100);
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.setPixelRatio(Math.min(devicePixelRatio,2.5));host.append(renderer.domElement);
@@ -8,8 +31,9 @@ scene.add(new THREE.HemisphereLight(0xffffff,0x666666,2.4));const light=new THRE
 const root=new THREE.Group();scene.add(root);let distance=4,azimuth=.55,elevation=.22,target=new THREE.Vector3(),extent=2;
 const material=new THREE.MeshStandardMaterial({color:0xbda889,roughness:.58,metalness:.015});
 const bodyMaterial=material.clone(),doorMaterial=material.clone(),drawerMaterial=material.clone();
+for(const mat of [material,bodyMaterial,doorMaterial,drawerMaterial])finishSurface(mat);
 let independentColors=false;
-function box(g,x,y,z,w,h,d,part='body'){if(w<=0||h<=0||d<=0)return;const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),independentColors?(part==='door'?doorMaterial:part==='drawer'?drawerMaterial:bodyMaterial):material);m.position.set(x,y,z);m.userData.partType=part;m.castShadow=true;m.receiveShadow=true;g.add(m)}
+function box(g,x,y,z,w,h,d,part='body'){if(w<=0||h<=0||d<=0)return;const m=new THREE.Mesh(cabinetGeometry(w,h,d),independentColors?(part==='door'?doorMaterial:part==='drawer'?drawerMaterial:bodyMaterial):material);m.position.set(x,y,z);m.userData.partType=part;m.castShadow=true;m.receiveShadow=true;g.add(m)}
 function furniture(params,offset){const p=calculateCabinet(params),w=p.dimensions.width/1000,h=p.dimensions.height/1000,d=p.dimensions.depth/1000,t=Number(params.thickness||18)/1000;
  const g=new THREE.Group();g.position.x=offset;root.add(g);
  box(g,-w/2+t/2,0,0,t,h,d);box(g,w/2-t/2,0,0,t,h,d);box(g,0,-h/2+t/2,0,w-2*t,t,d);box(g,0,h/2-t/2,0,w-2*t,t,d);box(g,0,0,-d/2+.003,w,h,.006);
