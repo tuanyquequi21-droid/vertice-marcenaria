@@ -2,7 +2,7 @@ import {calculateCabinet} from './engine.mjs';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color('#282828');
 const camera=new THREE.PerspectiveCamera(40,1,.1,30);camera.position.set(2.8,2.1,3.8);camera.lookAt(0,0,0);
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 const host=document.getElementById('scene');host.appendChild(renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xffffff,0x777777,2));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(2,4,5);scene.add(light);
 const group=new THREE.Group();scene.add(group);
@@ -11,7 +11,7 @@ let viewDistance=3,viewTarget=new THREE.Vector3(),viewAzimuth=.48,viewElevation=
 const fronts=[];
 const material=new THREE.MeshStandardMaterial({color:0xbda889,roughness:.75});
 function addBox(x,y,z,w,h,d){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);group.add(mesh)}
-function draw(p){fronts.length=0;doorMeta=[];doorsOpened=false;while(group.children.length){const mesh=group.children[0];group.remove(mesh);mesh.geometry.dispose()}
+function draw(p){presentationPreview=false;presentationGroup.visible=false;group.visible=true;fronts.length=0;doorMeta=[];doorsOpened=false;while(group.children.length){const mesh=group.children[0];group.remove(mesh);mesh.geometry.dispose()}
  const {width:w,height:h,depth:d}=p.dimensions;const t=Number(document.querySelector('[name=thickness]').value),s=Number(document.querySelector('[name=shelves]').value),doors=Number(document.querySelector('[name=doors]').value);
  const drawers=Number(document.querySelector('[name=drawers]').value||0),dividers=Number(document.querySelector('[name=dividers]').value||0);const W=w/1000,H=h/1000,D=d/1000,T=t/1000;addBox(-W/2+T/2,0,0,T,H,D);addBox(W/2-T/2,0,0,T,H,D);
  addBox(0,-H/2+T/2,0,W-2*T,T,D);addBox(0,H/2-T/2,0,W-2*T,T,D);
@@ -186,13 +186,69 @@ transferButton?.addEventListener('click',()=>{
 // Apresentação pública somente leitura. O link codifica apenas medidas/configuração dos módulos.
 // Não inclui foto, dados do cliente, custos nem credenciais.
 const presentationModules=[];
+let presentationPreview=false;
+const presentationGroup=new THREE.Group();scene.add(presentationGroup);
 const presentationStatus=document.getElementById('presentation-status');
 const presentationCount=document.getElementById('presentation-count');
 function presentationReport(message){presentationStatus.textContent=message}
+function renderPresentationList(){
+ const list=document.getElementById('presentation-module-list');list.replaceChildren();
+ presentationModules.forEach((params,i)=>{
+  const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid #ddd';
+  const name=document.createElement('span');name.style.flex='1';name.textContent='Módulo '+(i+1)+' — '+params.width+' × '+params.height+' × '+params.depth+' mm';
+  const edit=document.createElement('button');edit.type='button';edit.textContent='Editar';edit.onclick=()=>{applyProject({schemaVersion:1,kind:'cabinet',params});presentationPreview=false;presentationGroup.visible=false;group.visible=true;render();presentationReport('Módulo '+(i+1)+' carregado. Após alterar, clique em “Substituir módulo” para atualizar a apresentação.');selectedPresentationIndex=i};
+  const remove=document.createElement('button');remove.type='button';remove.textContent='Remover';remove.onclick=()=>{presentationModules.splice(i,1);selectedPresentationIndex=-1;renderPresentationList();if(presentationPreview)drawPresentation();};
+  row.append(name,edit,remove);list.append(row);
+ });
+ presentationCount.textContent=presentationModules.length+' módulo(s) na apresentação.';
+ document.getElementById('presentation-link').value='';
+}
+let selectedPresentationIndex=-1;
+function presentationBox(parent,x,y,z,w,h,d){
+ if(w<=0||h<=0||d<=0)return;
+ const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);parent.add(mesh);
+}
+function drawPresentation(){
+ while(presentationGroup.children.length){const child=presentationGroup.children[0];presentationGroup.remove(child);child.traverse(o=>{if(o.geometry)o.geometry.dispose()})}
+ let total=0,maxHeight=0;const data=presentationModules.map(params=>{const p=calculateCabinet(params);total+=p.dimensions.width/1000;maxHeight=Math.max(maxHeight,p.dimensions.height/1000);return {params,p}});
+ total+=Math.max(0,data.length-1)*.06;let offset=-total/2;
+ for(const {params,p} of data){
+  const w=p.dimensions.width/1000,h=p.dimensions.height/1000,d=p.dimensions.depth/1000,t=Number(params.thickness)/1000;
+  const g=new THREE.Group();g.position.x=offset+w/2;presentationGroup.add(g);offset+=w+.06;
+  presentationBox(g,-w/2+t/2,0,0,t,h,d);presentationBox(g,w/2-t/2,0,0,t,h,d);
+  presentationBox(g,0,-h/2+t/2,0,w-2*t,t,d);presentationBox(g,0,h/2-t/2,0,w-2*t,t,d);presentationBox(g,0,0,-d/2+.003,w,h,.006);
+  const shelves=Number(params.shelves||0);
+  for(let j=1;j<=shelves;j++)presentationBox(g,0,-h/2+j*h/(shelves+1),0,w-2*t,t,d-.006);
+  const div=Number(params.dividers||0);
+  for(let j=1;j<=div;j++)presentationBox(g,-w/2+t+j*p.layout.bayWidth/1000+(j-.5)*t,0,0,t,h-2*t,d-.006);
+  const doors=Number(params.doors||0),dh=p.layout.drawerHeight/1000,ph=p.layout.doorHeight/1000,stack=p.layout.doorType==='flap-down'&&p.layout.flapLayout!=='horizontal';
+  for(let j=0;j<doors;j++)presentationBox(g,stack?0:-w/2+(j+.5)*w/doors,stack?dh/2-ph/2+(j+.5)*ph/doors:dh/2,d/2+.012,stack?w-.006:w/doors-.006,stack?ph/doors-.004:ph-.004,t);
+  const drawers=Number(params.drawers||0),bayX=-w/2+t+(p.layout.drawerBay-.5)*p.layout.bayWidth/1000+(p.layout.drawerBay-1)*t;
+  for(let j=0;j<drawers;j++)presentationBox(g,bayX,-h/2+(j+.5)*dh/drawers,d/2+.012,p.layout.bayWidth/1000-.006,dh/drawers-.004,t);
+ }
+ presentationPreview=true;group.visible=false;presentationGroup.visible=true;
+ modelWidth=total;modelHeight=maxHeight;modelDepth=Math.max(.55,...data.map(x=>x.p.dimensions.depth/1000));modelSize=Math.sqrt(modelWidth**2+modelHeight**2+modelDepth**2);resetCamera();
+}
 document.getElementById('add-presentation-module').addEventListener('click',()=>{
- try{const params=Object.fromEntries(new FormData(document.getElementById('form')));calculateCabinet(params);if(presentationModules.length>=15)throw Error('Limite de 15 módulos por apresentação.');presentationModules.push(params);presentationCount.textContent=presentationModules.length+' módulo(s) na apresentação.';presentationReport('Móvel adicionado. Você pode mudar as medidas e adicionar outro.')}catch(e){presentationReport(e.message)}
+ try{
+  const params=Object.fromEntries(new FormData(document.getElementById('form')));calculateCabinet(params);
+  if(selectedPresentationIndex>=0){presentationModules[selectedPresentationIndex]=params;selectedPresentationIndex=-1;presentationReport('Módulo atualizado na apresentação.')}
+  else{
+   if(presentationModules.some(m=>JSON.stringify(m)===JSON.stringify(params)))return presentationReport('Este móvel já está na apresentação. Altere as medidas ou selecione “Editar” para substituir um módulo.');
+   if(presentationModules.length>=15)throw Error('Limite de 15 módulos por apresentação.');
+   presentationModules.push(params);presentationReport('Móvel adicionado. Configure outro móvel ou visualize a composição.');
+  }
+  renderPresentationList();drawPresentation();
+ }catch(e){presentationReport(e.message)}
 });
-document.getElementById('clear-presentation').addEventListener('click',()=>{presentationModules.length=0;presentationCount.textContent='Nenhum módulo adicionado.';document.getElementById('presentation-link').value='';presentationReport('Módulos removidos da apresentação.')});
+document.getElementById('clear-presentation').addEventListener('click',()=>{
+ presentationModules.length=0;selectedPresentationIndex=-1;renderPresentationList();
+ presentationPreview=false;presentationGroup.visible=false;group.visible=true;resetCamera();presentationReport('Módulos removidos da apresentação.');
+});
+document.getElementById('preview-presentation').addEventListener('click',()=>{
+ try{if(!presentationModules.length)throw Error('Adicione um móvel primeiro.');drawPresentation();presentationReport('Exibindo todos os módulos na mesma cena.')}catch(e){presentationReport(e.message)}
+});
+document.getElementById('preview-current').addEventListener('click',()=>{presentationPreview=false;presentationGroup.visible=false;group.visible=true;const params=Object.fromEntries(new FormData(document.getElementById('form')));draw(calculateCabinet(params));presentationReport('Exibindo o móvel em edição.')});
 document.getElementById('create-presentation-link').addEventListener('click',()=>{
  try{if(!presentationModules.length)throw Error('Adicione pelo menos um móvel à apresentação.');
  const payload={version:1,title:document.getElementById('presentation-title').value.trim().slice(0,100),modules:presentationModules};
@@ -201,7 +257,7 @@ document.getElementById('create-presentation-link').addEventListener('click',()=
  if(token.length>15000)throw Error('Apresentação muito grande para link. Reduza o número de módulos.');
  const url=new URL('./apresentacao.html',location.href);url.hash=token;
  document.getElementById('presentation-link').value=url.href;
- presentationReport('Link criado. O cliente poderá girar, aproximar e explorar os móveis sem editar. A foto não está incluída.');
+ presentationReport('Link criado com '+presentationModules.length+' módulo(s). O cliente poderá explorar sem editar. A foto ainda não acompanha o link.');
  }catch(e){presentationReport(e.message)}
 });
 document.getElementById('copy-presentation-link').addEventListener('click',async()=>{
@@ -213,8 +269,9 @@ let roomPhotoUrl=null;
 document.getElementById('room-photo').addEventListener('change',e=>{
  const file=e.target.files?.[0];if(roomPhotoUrl){URL.revokeObjectURL(roomPhotoUrl);roomPhotoUrl=null}
  const img=document.getElementById('room-preview');img.hidden=true;
- if(!file)return;
+ if(!file){host.style.backgroundImage='';scene.background=new THREE.Color('#282828');render();return;}
  if(!file.type.startsWith('image/')||file.size>12*1024*1024)return presentationReport('Escolha uma imagem de até 12 MB.');
  roomPhotoUrl=URL.createObjectURL(file);img.src=roomPhotoUrl;img.hidden=false;
- presentationReport('Foto carregada como referência local. Posicionamento dos móveis na foto e renderização realista ainda serão implementados.');
+ host.style.backgroundImage='url("'+roomPhotoUrl+'")';host.style.backgroundSize='cover';host.style.backgroundPosition='center';scene.background=null;render();
+ presentationReport('Foto aplicada ao fundo do 3D. A perspectiva é ilustrativa; ajuste a câmera para aproximar a posição. O link do cliente ainda não inclui a foto.');
 });
