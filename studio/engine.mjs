@@ -44,6 +44,7 @@ export function calculateCabinet(input={}){
  if(bayWidth<=4*t+26&&drawers)throw new RangeError('Módulo estreito demais para a caixa da gaveta');
  const drawerHeight=drawers?Math.max(120,Math.min(h*.42,drawers*180)):0;
  const doorHeight=h-drawerHeight;
+ if(doorType==='flap-down'&&doors>0&&doorHeight/doors<150)throw new RangeError('Cada porta basculante precisa ter ao menos 150 mm de altura');
  if(doors>0&&doorHeight<150)throw new RangeError('Altura insuficiente para portas acima das gavetas');
  if(drawers>0&&drawerHeight/drawers<120)throw new RangeError('Altura insuficiente para a quantidade de gavetas');
  if(w<=4*t+26||h<=2*t||depth<=Math.max(bt,80))throw new RangeError('Dimensões insuficientes para a espessura');
@@ -56,7 +57,7 @@ export function calculateCabinet(input={}){
   ...(dividers?[{name:'Divisória vertical adicional',qty:dividers,width:depth-bt,height:h-2*t,thickness:t,edgeMm:h-2*t}]:[]),
   ...(doors&&drawers?[{name:'Divisória horizontal',qty:1,width:w-2*t,height:depth-bt,thickness:t,edgeMm:w-2*t}]:[]),
   {name:'Fundo',qty:1,width:w,height:h,thickness:bt,edgeMm:0},
-  ...(doors?[{name:doorType==='sliding'?'Folha de correr':doorType==='flap-down'?'Porta basculante inferior':'Porta de abrir',qty:doors,width:doorType==='sliding'?(w/doors+Math.min(30,w*.025)):w/doors-3,height:doorHeight-4,thickness:t,edgeMm:2*((doorType==='sliding'?(w/doors+Math.min(30,w*.025)):w/doors-3)+doorHeight-4)}]:[]),
+  ...(doors?[{name:doorType==='sliding'?'Folha de correr':doorType==='flap-down'?'Porta basculante inferior':'Porta de abrir',qty:doors,width:doorType==='flap-down'?w-6:doorType==='sliding'?(w/doors+Math.min(30,w*.025)):w/doors-3,height:doorType==='flap-down'?doorHeight/doors-4:doorHeight-4,thickness:t,edgeMm:2*((doorType==='flap-down'?w-6:doorType==='sliding'?(w/doors+Math.min(30,w*.025)):w/doors-3)+(doorType==='flap-down'?doorHeight/doors-4:doorHeight-4))}]:[]),
   ...(drawers?[{name:'Frente de gaveta',qty:drawers,width:bayWidth-6,height:drawerHeight/drawers-4,thickness:t,edgeMm:2*(bayWidth-6+drawerHeight/drawers-4)},{name:'Lateral de gaveta',qty:drawers*2,width:depth-60,height:Math.min(160,drawerHeight/drawers-50),thickness:t,edgeMm:depth-60},{name:'Frente interna da caixa',qty:drawers,width:bayWidth-2*t-26,height:Math.min(160,drawerHeight/drawers-50),thickness:t,edgeMm:0},{name:'Contra-frente (traseira da caixa)',qty:drawers,width:w-4*t-26,height:Math.min(160,drawerHeight/drawers-50),thickness:t,edgeMm:0},{name:'Fundo de gaveta',qty:drawers,width:w-4*t-26,height:depth-60,thickness:bt,edgeMm:0}]:[])
  ];
  if(parts.some(p=>p.width<=0||p.height<=0))throw new RangeError('Medidas insuficientes para gavetas');
