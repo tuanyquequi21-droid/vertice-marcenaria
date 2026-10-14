@@ -25,7 +25,7 @@ const microBump=new THREE.CanvasTexture(grainCanvas);microBump.wrapS=microBump.w
 function finishSurface(mat){mat.bumpMap=microBump;mat.bumpScale=.00018;mat.roughness=.62;mat.metalness=0;mat.needsUpdate=true}
 const scene=new THREE.Scene();scene.background=new THREE.Color('#34383d');
 const camera=new THREE.PerspectiveCamera(40,1,.1,30);camera.position.set(2.8,2.1,3.8);camera.lookAt(0,0,0);
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2.5));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2.5));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const host=document.getElementById('scene');host.appendChild(renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xffffff,0x777777,2));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(2,4,5);light.castShadow=true;light.shadow.mapSize.set(2048,2048);light.shadow.camera.left=-7;light.shadow.camera.right=7;light.shadow.camera.top=7;light.shadow.camera.bottom=-7;light.shadow.bias=-0.00015;light.shadow.normalBias=.025;scene.add(light);
 const fill=new THREE.DirectionalLight(0xc9d8ff,.65);fill.position.set(-4,2,-3);scene.add(fill);
@@ -101,7 +101,7 @@ function updateCamera(){
  viewElevation=THREE.MathUtils.clamp(viewElevation,-1.35,1.35);
  viewDistance=THREE.MathUtils.clamp(viewDistance,modelSize*.6,modelSize*12);
  camera.position.set(viewTarget.x+viewDistance*Math.sin(viewAzimuth)*Math.cos(viewElevation),viewTarget.y+viewDistance*Math.sin(viewElevation),viewTarget.z+viewDistance*Math.cos(viewAzimuth)*Math.cos(viewElevation));
- camera.lookAt(viewTarget);if(roomEnabled)rebuildRoom();render();
+ camera.lookAt(viewTarget);render();
 }
 function resetCamera(){viewTarget.set(0,0,0);viewAzimuth=.48;viewElevation=.22;viewDistance=cameraFitDistance();updateCamera();}
 function zoomCamera(factor){viewDistance*=factor;updateCamera();}
