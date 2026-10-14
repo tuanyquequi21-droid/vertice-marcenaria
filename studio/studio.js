@@ -444,3 +444,16 @@ document.getElementById('finish-apply').onclick=()=>{
  applyFinish(f);
 };
 refreshFinishes();
+
+document.getElementById('quick-share-3d').addEventListener('click',()=>{
+ try{
+  if(!presentationModules.length){document.getElementById('add-presentation-module').click()}
+  if(!presentationModules.length)return presentationReport('Não foi possível preparar o móvel. Confira as medidas.');
+  document.getElementById('create-presentation-link').click();
+  const link=document.getElementById('presentation-link');
+  if(!link.value)return;
+  link.scrollIntoView({behavior:'smooth',block:'center'});
+  link.focus();link.select();
+  presentationReport('Link 3D pronto para copiar e enviar ao cliente. O cliente pode explorar sem editar.');
+ }catch(e){presentationReport('Erro ao gerar link: '+e.message)}
+});
