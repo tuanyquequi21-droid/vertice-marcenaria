@@ -1,6 +1,32 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vértice Studio 3D — Laboratório</title><style>
-:root{color-scheme:dark;font-family:Inter,system-ui,Arial}*{box-sizing:border-box}body{margin:0;background:#171717;color:#eee}header{padding:18px 24px;border-bottom:1px solid #444}header strong{color:#d5b66c}main{display:grid;grid-template-columns:minmax(280px,340px) 1fr;min-height:calc(100vh - 76px)}aside{padding:22px;background:#242424}label{display:block;margin:12px 0}input{width:100%;padding:10px;background:#111;color:#fff;border:1px solid #555;border-radius:5px}button{margin:4px;padding:11px 16px;background:#b48a35;border:0;border-radius:5px;color:#111;font-weight:bold;cursor:pointer}#scene{min-height:420px;touch-action:none;cursor:grab}.tools{margin-top:14px;display:flex;flex-wrap:wrap;gap:5px}.filelabel{font-size:12px}.filelabel input{font-size:12px;max-width:250px}table{width:100%;border-collapse:collapse;font-size:12px}td,th{padding:8px;border-bottom:1px solid #555;text-align:left}.summary{padding:18px 24px;background:#202020}.error{color:#ffb5a9}.hint{color:#bbb;font-size:12px}@media(max-width:750px){main{display:block}#scene{height:450px}}</style></head><body>
-<header><strong>VÉRTICE</strong> STUDIO 3D <small>• protótipo técnico isolado</small></header>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vértice Studio 3D — Laboratório</title><link rel="stylesheet" href="../assets/css/app-v4.css"><style>
+:root{color-scheme:light}
+body{background:var(--bg);color:#262626;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:13px}
+header{min-height:68px;padding:14px 24px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+header strong{color:var(--gold);font-family:Georgia,serif;letter-spacing:2px;font-size:19px}
+header small{color:var(--muted);font-size:11px}
+main{display:grid;grid-template-columns:minmax(275px,330px) minmax(0,1fr);min-height:calc(100dvh - 68px);gap:16px;padding:16px;align-items:start}
+aside{background:#fff;border:1px solid var(--line);border-radius:6px;padding:18px;max-height:calc(100dvh - 100px);overflow-y:auto;overscroll-behavior:contain}
+aside h2{font-size:16px;margin:0 0 15px;border-bottom:1px solid var(--line);padding-bottom:12px}
+label{display:grid;gap:5px;margin:12px 0;color:#555;font-size:11px}
+input{width:100%;padding:9px;border:1px solid #d9d5cd;border-radius:4px;background:#fff;color:#222;min-width:0}
+button{margin:3px 2px 3px 0;padding:9px 12px;background:#fff;border:1px solid #d8d4cc;border-radius:4px;color:#262626;font-weight:500;cursor:pointer}
+button:hover{border-color:var(--gold);background:#faf7ef}
+button[type=submit]{background:var(--gold);border-color:var(--gold);color:#fff;font-weight:600;width:100%;margin-top:12px}
+button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+#scene{min-height:440px;height:min(62dvh,650px);touch-action:none;cursor:grab;background:#282828;border-radius:6px;border:1px solid var(--line);overflow:hidden}
+main>div{min-width:0}
+.tools{margin-top:14px;display:flex;flex-wrap:wrap;gap:5px;border-top:1px solid var(--line);padding-top:14px}
+.filelabel{font-size:11px;width:100%}.filelabel input{font-size:12px;max-width:100%}
+table{width:100%;border-collapse:collapse;font-size:12px;background:#fff}
+td,th{padding:9px;border-bottom:1px solid var(--line);text-align:left}
+th{color:#666;font-size:10px;text-transform:uppercase}
+.summary{padding:18px;margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:6px;overflow-x:auto}
+.summary h3{font-size:14px;margin:0 0 10px}
+.error{color:var(--danger)}.hint{color:var(--muted);font-size:12px;line-height:1.5}
+@media(max-width:850px){main{grid-template-columns:1fr;padding:10px;gap:10px}aside{max-height:none;overflow:visible}#scene{height:440px;min-height:350px}header{padding:12px 16px}}
+@media(max-width:480px){button,input{font-size:16px}#scene{height:350px}main{padding:8px}.summary{padding:12px}header small{width:100%}}
+</style></head><body>
+<header><strong>VÉRTICE</strong> STUDIO 3D <small>• editor de projetos em teste</small></header>
 <main><aside><h2>Armário paramétrico</h2><form id="form"><label>Largura (mm)<input name="width" type="number" value="800" min="100" required></label><label>Altura (mm)<input name="height" type="number" value="2200" min="100" required></label><label>Profundidade (mm)<input name="depth" type="number" value="550" min="100" required></label><label>Espessura MDF (mm)<input name="thickness" type="number" value="18" min="6" required></label><label>Prateleiras<input name="shelves" type="number" value="3" min="0" max="30"></label><label>Divisórias verticais adicionais<input name="dividers" type="number" value="0" min="0" max="20"></label><label>Portas (0 a 12)<input name="doors" type="number" value="2" min="0" max="12"></label><label>Módulo das gavetas (1 = primeiro vão à esquerda)<input name="drawerBay" type="number" value="1" min="1" max="21"></label><label>Gavetas (0 a 12)<input name="drawers" type="number" value="0" min="0" max="12"></label><label>MDF estimado (R$/m²)<input name="pricePerM2" type="number" value="120" min="1" step=".01"></label><label>Fita de borda (R$/m)<input name="edgePricePerM" type="number" value="3" min="0" step=".01"></label><button type="submit">Atualizar projeto</button><div class="tools"><button type="button" id="save">Salvar no navegador</button><button type="button" id="load">Abrir salvo</button><button type="button" id="export">Exportar projeto JSON</button><button type="button" id="csv">Lista de peças CSV</button><button type="button" id="interior">Ver parte interna</button><button type="button" id="resetview">Centralizar câmera</button><label class="filelabel">Importar projeto JSON<input type="file" id="import" accept=".json,application/json"></label></div></form><p class="hint">Portas são distribuídas na parte superior e gavetas na inferior quando usadas juntas. A vista interna oculta as frentes. Os cálculos são preliminares e não alteram orçamentos ou cadastros existentes. Os projetos salvos ficam apenas neste navegador; exporte o JSON para backup.</p><p id="error" class="error" role="alert"></p><p id="status" class="hint" role="status"></p></aside><div><div id="scene" aria-label="Visualização tridimensional do armário"></div><section class="summary"><h3>Prévia de materiais</h3><p id="totals"></p><table><thead><tr><th>Peça</th><th>Qtd.</th><th>Dimensões (mm)</th></tr></thead><tbody id="parts"></tbody></table><p class="hint">Sem ferragens, mão de obra ou otimização de chapas. Não usar diretamente para fabricação.</p></section></div></main>
 <script type="module" src="./studio.js"></script></body></html>
