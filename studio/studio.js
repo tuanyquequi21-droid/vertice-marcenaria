@@ -470,3 +470,64 @@ function activateStudioStep(step){
  const panel=panels[step];if(panel)panel.scrollIntoView({behavior:'smooth',block:'center'});
 }
 document.querySelectorAll('#studio-steps [data-step]').forEach(b=>b.addEventListener('click',()=>activateStudioStep(b.dataset.step)));
+
+let photoComposeActive=false;
+function photoMessage(message){document.getElementById('photo-compose-status').textContent=message}
+function photoSelectedIndex(){return Number(document.getElementById('placement-module').value)||0}
+function ensurePhotoModule(){
+ if(!presentationModules.length)document.getElementById('add-presentation-module').click();
+ if(!presentationModules.length){photoMessage('Configure as medidas do móvel antes de posicionar.');return false}
+ if(!presentationPreview)drawPresentation();
+ return true;
+}
+document.getElementById('photo-compose').onclick=()=>{
+ if(!photoComposeActive&&!roomPhotoUrl){photoMessage('Primeiro carregue uma fotografia do ambiente no painel lateral.');document.getElementById('room-photo').scrollIntoView({behavior:'smooth',block:'center'});return}
+ if(!photoComposeActive&&!ensurePhotoModule())return;
+ photoComposeActive=!photoComposeActive;
+ const btn=document.getElementById('photo-compose');
+ btn.setAttribute('aria-pressed',String(photoComposeActive));
+ btn.style.background=photoComposeActive?'#b08b46':'';
+ btn.style.color=photoComposeActive?'#fff':'';
+ groundGrid.visible=!photoComposeActive;
+ if(photoComposeActive){
+  interactionMode='move';syncInteractionMode();
+  selectMoveModule(photoSelectedIndex());
+  photoMessage('Foto fixa. Clique no móvel e arraste para posicionar. Girar altera o ângulo; Menor/Maior muda a distância aparente. A escala é ilustrativa.');
+ }else{movingPointer=null;interactionMode='view';syncInteractionMode();photoMessage('Modo foto desativado. A câmera pode girar novamente.')}
+ render();
+};
+function photoAdjustRotation(degrees){
+ if(!ensurePhotoModule())return;
+ const i=photoSelectedIndex(),p={...placementFor(i)};
+ p.rotation=(p.rotation+degrees)%360;presentationPlacements[i]=p;
+ drawPresentation();loadPlacement();photoMessage('Rotação do móvel: '+p.rotation+'°.'); 
+}
+document.getElementById('photo-rotate-left').onclick=()=>photoAdjustRotation(-15);
+document.getElementById('photo-rotate-right').onclick=()=>photoAdjustRotation(15);
+function photoAdjustSize(amount){
+ if(!ensurePhotoModule())return;
+ const i=photoSelectedIndex(),p={...placementFor(i)};
+ p.z=Math.max(-5000,Math.min(5000,p.z+amount));presentationPlacements[i]=p;
+ drawPresentation();loadPlacement();photoMessage('Profundidade alterada em '+amount+' mm. A foto não fornece escala real.');
+}
+document.getElementById('photo-smaller').onclick=()=>photoAdjustSize(-150);
+document.getElementById('photo-larger').onclick=()=>photoAdjustSize(150);
+// No modo foto, bloqueia a órbita de câmera mesmo ao clicar fora do móvel.
+canvas.addEventListener('pointerdown',e=>{
+ if(!photoComposeActive)return;
+ e.stopImmediatePropagation();
+ if(e.button!==0)return;
+ const rect=canvas.getBoundingClientRect();
+ mouseNdc.set((e.clientX-rect.left)/rect.width*2-1,-((e.clientY-rect.top)/rect.height*2-1));
+ raycaster.setFromCamera(mouseNdc,camera);
+ const hit=raycaster.intersectObjects(presentationGroup.children.slice(0,presentationModules.length),true)[0];
+ if(!hit){photoMessage('Clique sobre o móvel para arrastá-lo. A fotografia permanece fixa.');return}
+ let root=hit.object;while(root.parent&&root.parent!==presentationGroup)root=root.parent;
+ const index=presentationGroup.children.indexOf(root);
+ if(index<0||index>=presentationModules.length)return;
+ selectMoveModule(index);
+ movingPointer={id:e.pointerId,index,x:e.clientX,y:e.clientY};
+ canvas.setPointerCapture(e.pointerId);
+},true);
+canvas.addEventListener('pointermove',e=>{if(photoComposeActive)e.stopImmediatePropagation()},true);
+canvas.addEventListener('wheel',e=>{if(photoComposeActive){e.preventDefault();e.stopImmediatePropagation()}}, {capture:true,passive:false});
