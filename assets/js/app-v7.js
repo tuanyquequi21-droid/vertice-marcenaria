@@ -184,13 +184,13 @@ sessionUI=async function(s){
  if(!s){V8.perfil=null;V8.permissoes=new Set();return}
  if(!await loadPermissions()){await sb.auth.signOut();return}
  await load();await loadUsersV8();applyPermissionUI();
- let first=['dashboard','leads','clientes','orcamentos','agenda','producao','materiais','financeiro','relatorios'].find(v8AllowedPage)||'dashboard';page(first);
+ let first=['dashboard','leads','clientes','orcamentos','agenda','producao','materiais','financeiro','relatorios'].find(v8AllowedPage)||'dashboard';let savedPage='';try{savedPage=sessionStorage.getItem('vertice:page:'+s.user.id)||''}catch(e){console.warn('Navegação sem armazenamento de sessão',e)}page(savedPage&&v8AllowedPage(savedPage)&&['dashboard','leads','clientes','pipeline','agenda','orcamentos','producao','materiais','custos','financeiro','relatorios','comunicacoes','posvenda','usuarios'].includes(savedPage)?savedPage:first);
 }
 const _v8Page=page;
 page=function(name){
  if(!v8AllowedPage(name)){ $('#pageTitle').textContent='Acesso restrito';$('#content').innerHTML='<div class="panel"><div class="panel-body"><p>Seu usuário não possui permissão para este módulo.</p></div></div>';return }
- if(name==='usuarios'){usuariosV8();return}
- _v8Page(name);applyPermissionUI();
+ if(name==='usuarios'){usuariosV8()}else{_v8Page(name);applyPermissionUI()}
+ try{const {data:{session}}=await sb.auth.getSession();if(session?.user?.id)sessionStorage.setItem('vertice:page:'+session.user.id,name)}catch(e){console.warn('Não foi possível guardar a página atual',e)}
 }
 
 /* Orçamentos: custos/lucro/margem aparecem somente para quem possui as permissões. */
