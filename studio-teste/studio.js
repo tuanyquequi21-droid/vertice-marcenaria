@@ -431,6 +431,42 @@ canvas.addEventListener('pointerup',stopMoving,true);
 canvas.addEventListener('pointercancel',stopMoving,true);
 syncInteractionMode();
 
+// Amostras genéricas e ilustrativas; sem atribuição de marca ou código comercial.
+const DEFAULT_FINISH_PRESETS=[
+ {name:'Branco',color:'#f4f3ed',pattern:'solid'},
+ {name:'Off-white',color:'#e7dfd1',pattern:'solid'},
+ {name:'Cinza cristal',color:'#b6b9b6',pattern:'solid'},
+ {name:'Cinza grafite',color:'#51565a',pattern:'solid'},
+ {name:'Preto fosco',color:'#252526',pattern:'solid'},
+ {name:'Areia / fendi',color:'#c5b7a3',pattern:'solid'},
+ {name:'Carvalho claro',color:'#c4a77c',pattern:'wood'},
+ {name:'Freijó claro',color:'#b98c5e',pattern:'wood'},
+ {name:'Nogueira',color:'#78533d',pattern:'wood'},
+ {name:'Amadeirado escuro',color:'#4b3429',pattern:'wood'},
+ {name:'Verde oliva',color:'#747b65',pattern:'solid'},
+ {name:'Azul petróleo',color:'#39535a',pattern:'solid'}
+];
+function renderFinishPresets(){
+ const host=document.getElementById('finish-presets');if(!host)return;
+ host.replaceChildren();
+ for(const preset of DEFAULT_FINISH_PRESETS){
+  const button=document.createElement('button');button.type='button';button.className='finish-preset';
+  button.title='Aplicar '+preset.name+' (aproximação visual)';
+  const swatch=document.createElement('span');swatch.className='swatch';
+  swatch.style.backgroundColor=preset.color;
+  if(preset.pattern==='wood')swatch.style.backgroundImage='repeating-linear-gradient(91deg,transparent 0px,rgba(35,19,8,.10) 2px,transparent 4px,transparent 11px,rgba(255,255,255,.13) 13px,transparent 17px)';
+  const name=document.createElement('span');name.textContent=preset.name;button.append(swatch,name);
+  button.onclick=()=>{
+   const target=document.getElementById('preset-target').value;
+   const input=document.getElementById('cabinet-'+(target==='body'?'body':target==='doors'?'door':'drawer')+'-color');
+   input.value=preset.color;
+   document.getElementById('apply-component-colors').click();
+   finishReport('Amostra '+preset.name+' aplicada em '+({body:'estrutura',doors:'portas',drawers:'gavetas'}[target])+'. Cor aproximada, não textura comercial.');
+  };
+  host.append(button);
+ }
+}
+renderFinishPresets();
 const FINISH_KEY='vertice:studio:finishes:v1';
 let activeShareFinishImage=null;
 let finishes=[];
