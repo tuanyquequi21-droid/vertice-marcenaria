@@ -1,11 +1,15 @@
 // Vértice Studio 3D — núcleo independente, sem acesso ao banco de produção.
-export const DEFAULTS = Object.freeze({width:800,height:2200,depth:550,thickness:18,backThickness:6,shelves:3,doors:2,drawers:0,dividers:0,pricePerM2:120,edgePricePerM:3,wastePercent:15});
+export const DEFAULTS = Object.freeze({width:800,height:2200,depth:550,thickness:18,backThickness:6,shelves:3,doors:2,doorType:'hinged',doorSwing:'left',drawers:0,dividers:0,pricePerM2:120,edgePricePerM:3,wastePercent:15});
 export function positive(value,name){const n=Number(value);if(!Number.isFinite(n)||n<=0)throw new RangeError(name+' deve ser maior que zero');return n}
 export function calculateCabinet(input={}){
  const d={...DEFAULTS,...input},w=positive(d.width,'Largura'),h=positive(d.height,'Altura'),depth=positive(d.depth,'Profundidade'),t=positive(d.thickness,'Espessura'),bt=positive(d.backThickness,'Fundo');
  const shelves=Number(d.shelves),doors=Number(d.doors),waste=Number(d.wastePercent);
  if(!Number.isInteger(shelves)||shelves<0||shelves>30)throw new RangeError('Prateleiras inválidas');
  if(!Number.isInteger(doors)||doors<0||doors>12)throw new RangeError('Portas devem ser de 0 a 12');
+ const doorType=String(d.doorType||'hinged'),doorSwing=String(d.doorSwing||'left');
+ if(!['hinged','flap-down','sliding'].includes(doorType))throw new RangeError('Tipo de porta inválido');
+ if(!['left','right'].includes(doorSwing))throw new RangeError('Sentido de abertura inválido');
+ if(doorType==='sliding'&&doors>0&&doors<2)throw new RangeError('Porta de correr precisa de pelo menos duas folhas');
  const drawers=Number(d.drawers??0),dividers=Number(d.dividers??0);
  if(!Number.isInteger(dividers)||dividers<0||dividers>20)throw new RangeError('Divisórias verticais devem ser de 0 a 20');
  if(!Number.isInteger(drawers)||drawers<0||drawers>12)throw new RangeError('Gavetas devem ser de 0 a 12');
@@ -27,7 +31,7 @@ export function calculateCabinet(input={}){
   ...(dividers?[{name:'Divisória vertical adicional',qty:dividers,width:depth-bt,height:h-2*t,thickness:t,edgeMm:h-2*t}]:[]),
   ...(doors&&drawers?[{name:'Divisória horizontal',qty:1,width:w-2*t,height:depth-bt,thickness:t,edgeMm:w-2*t}]:[]),
   {name:'Fundo',qty:1,width:w,height:h,thickness:bt,edgeMm:0},
-  ...(doors?[{name:'Porta',qty:doors,width:w/doors-3,height:doorHeight-4,thickness:t,edgeMm:2*(w/doors-3+doorHeight-4)}]:[]),
+  ...(doors?[{name:doorType==='sliding'?'Folha de correr':doorType==='flap-down'?'Porta basculante inferior':'Porta de abrir',qty:doors,width:doorType==='sliding'?(w/doors+Math.min(30,w*.025)):w/doors-3,height:doorHeight-4,thickness:t,edgeMm:2*((doorType==='sliding'?(w/doors+Math.min(30,w*.025)):w/doors-3)+doorHeight-4)}]:[]),
   ...(drawers?[{name:'Frente de gaveta',qty:drawers,width:bayWidth-6,height:drawerHeight/drawers-4,thickness:t,edgeMm:2*(bayWidth-6+drawerHeight/drawers-4)},{name:'Lateral de gaveta',qty:drawers*2,width:depth-60,height:Math.min(160,drawerHeight/drawers-50),thickness:t,edgeMm:depth-60},{name:'Frente interna da caixa',qty:drawers,width:bayWidth-2*t-26,height:Math.min(160,drawerHeight/drawers-50),thickness:t,edgeMm:0},{name:'Contra-frente (traseira da caixa)',qty:drawers,width:w-4*t-26,height:Math.min(160,drawerHeight/drawers-50),thickness:t,edgeMm:0},{name:'Fundo de gaveta',qty:drawers,width:w-4*t-26,height:depth-60,thickness:bt,edgeMm:0}]:[])
  ];
  if(parts.some(p=>p.width<=0||p.height<=0))throw new RangeError('Medidas insuficientes para gavetas');
@@ -35,5 +39,5 @@ export function calculateCabinet(input={}){
  const edgeM=parts.reduce((sum,p)=>sum+p.qty*p.edgeMm/1000,0);
  const price=positive(d.pricePerM2,'Preço por m²'),edgePrice=Number(d.edgePricePerM);
  if(!Number.isFinite(edgePrice)||edgePrice<0)throw new RangeError('Preço da fita inválido');
- return {dimensions:{width:w,height:h,depth},layout:{drawerHeight,doorHeight,bayWidth,drawerBay,bays},parts,areaM2,edgeM,estimatedMaterialCost:areaM2*(1+waste/100)*price+edgeM*edgePrice,assumptions:['Medidas em mm','Custo estimado sem ferragens, mão de obra, usinagem ou plano de corte otimizado','Caixas de gaveta são estimativas: conferir corrediças, folgas e montagem antes da fabricação']};
+ return {dimensions:{width:w,height:h,depth},layout:{drawerHeight,doorHeight,bayWidth,drawerBay,bays,doorType,doorSwing},parts,areaM2,edgeM,estimatedMaterialCost:areaM2*(1+waste/100)*price+edgeM*edgePrice,assumptions:['Medidas em mm','Custo estimado sem ferragens, mão de obra, usinagem ou plano de corte otimizado','Caixas de gaveta são estimativas: conferir corrediças, folgas e montagem antes da fabricação']};
 }
