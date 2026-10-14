@@ -29,7 +29,7 @@ function draw(p){presentationPreview=false;presentationGroup.visible=false;group
   const z=D/2+.012+(type==='sliding'?(i%2)*(.012+T):0);
   addBox(x,y,z,panelW,panelH,T);
   const mesh=group.children[group.children.length-1];fronts.push(mesh);
-  doorMeta.push({mesh,type,index:i,closed:{x,y,z},width:panelW,height:panelH,swing:p.layout.doorSwing});
+  doorMeta.push({mesh,type,index:i,closed:{x,y,z},width:panelW,height:panelH,swing:doors===2&&type==='hinged'?(i===0?'left':'right'):p.layout.doorSwing});
  }
  const bayW=p.layout.bayWidth/1000,bayX=-W/2+T+(p.layout.drawerBay-.5)*bayW+(p.layout.drawerBay-1)*T;
  for(let i=0;i<drawers;i++){addBox(bayX,-H/2+(i+.5)*DH/drawers,D/2+.012,bayW-.006,DH/drawers-.004,T);fronts.push(group.children[group.children.length-1])}
