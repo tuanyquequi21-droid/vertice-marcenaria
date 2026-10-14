@@ -397,3 +397,50 @@ function stopMoving(e){if(!movingPointer||e.pointerId!==movingPointer.id)return;
 canvas.addEventListener('pointerup',stopMoving,true);
 canvas.addEventListener('pointercancel',stopMoving,true);
 syncInteractionMode();
+
+const FINISH_KEY='vertice:studio:finishes:v1';
+let finishes=[];
+try{finishes=JSON.parse(localStorage.getItem(FINISH_KEY)||'[]');if(!Array.isArray(finishes))finishes=[]}catch{finishes=[]}
+function finishReport(msg){document.getElementById('finish-status').textContent=msg}
+function refreshFinishes(){
+ const select=document.getElementById('finish-list'),old=select.value;select.replaceChildren();
+ finishes.forEach((f,i)=>{const opt=document.createElement('option');opt.value=String(i);opt.textContent=f.brand+' — '+f.name;select.append(opt)});
+ if(finishes.length)select.value=old&&Number(old)<finishes.length?old:'0';
+}
+function applyFinish(f){
+ material.color.set(f.color||'#bda889');
+ if(material.map){material.map.dispose();material.map=null}
+ if(f.image){
+  new THREE.TextureLoader().load(f.image,texture=>{
+   texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+   texture.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+   material.map=texture;material.needsUpdate=true;render();finishReport('Textura '+f.name+' aplicada ao modelo. Confira a orientação do veio.');
+  },undefined,()=>finishReport('Não foi possível carregar a imagem. Usando a cor aproximada.'));
+ }else{material.needsUpdate=true;render();finishReport('Cor '+f.name+' aplicada ao modelo.')}
+}
+document.getElementById('finish-save').onclick=async()=>{
+ try{
+  const brand=document.getElementById('finish-brand').value.trim(),name=document.getElementById('finish-name').value.trim(),color=document.getElementById('finish-color').value;
+  if(!brand||!name)throw Error('Informe fabricante e nome do padrão.');
+  if(finishes.length>=30)throw Error('Limite local de 30 padrões. Exporte/limpe padrões antigos antes de cadastrar mais.');
+  const file=document.getElementById('finish-image').files[0];let image=null;
+  if(file){
+   if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>8*1024*1024)throw Error('Use JPG, PNG ou WebP de até 8 MB.');
+   image=await new Promise((resolve,reject)=>{
+    const img=new Image(),url=URL.createObjectURL(file);
+    img.onload=()=>{const canvas=document.createElement('canvas');const factor=Math.min(1,768/Math.max(img.width,img.height));canvas.width=Math.max(1,Math.round(img.width*factor));canvas.height=Math.max(1,Math.round(img.height*factor));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);URL.revokeObjectURL(url);resolve(canvas.toDataURL('image/jpeg',.72))};
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(Error('Imagem inválida.'))};img.src=url;
+   });
+  }
+  const finish={brand:brand.slice(0,60),name:name.slice(0,80),color,image};
+  const next=[...finishes,finish];localStorage.setItem(FINISH_KEY,JSON.stringify(next));finishes=next;refreshFinishes();
+  document.getElementById('finish-list').value=String(finishes.length-1);applyFinish(finish);
+  finishReport('Padrão cadastrado neste navegador e aplicado ao 3D. A imagem não é enviada ao cliente.');
+ }catch(e){finishReport('Erro: '+e.message)}
+};
+document.getElementById('finish-apply').onclick=()=>{
+ const f=finishes[Number(document.getElementById('finish-list').value)];
+ if(!f)return finishReport('Cadastre um acabamento primeiro.');
+ applyFinish(f);
+};
+refreshFinishes();
