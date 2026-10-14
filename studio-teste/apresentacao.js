@@ -1,15 +1,15 @@
 import {calculateCabinet} from './engine.mjs';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
 const host=document.getElementById('scene'),error=document.getElementById('error');
-const scene=new THREE.Scene();scene.background=new THREE.Color(0x282828);
+const scene=new THREE.Scene();scene.background=new THREE.Color('#34383d');
 const camera=new THREE.PerspectiveCamera(42,1,.05,100);
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));host.append(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xffffff,0x666666,2.4));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(3,6,5);scene.add(light);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.setPixelRatio(Math.min(devicePixelRatio,2.5));host.append(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x666666,2.4));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(3,6,5);light.castShadow=true;light.shadow.mapSize.set(2048,2048);light.shadow.camera.left=-8;light.shadow.camera.right=8;light.shadow.camera.top=8;light.shadow.camera.bottom=-8;light.shadow.bias=-.00015;scene.add(light);const fill=new THREE.DirectionalLight(0xc9d8ff,.6);fill.position.set(-4,2,-3);scene.add(fill);
 const root=new THREE.Group();scene.add(root);let distance=4,azimuth=.55,elevation=.22,target=new THREE.Vector3(),extent=2;
-const material=new THREE.MeshStandardMaterial({color:0xbda889,roughness:.67});
+const material=new THREE.MeshStandardMaterial({color:0xbda889,roughness:.58,metalness:.015});
 const bodyMaterial=material.clone(),doorMaterial=material.clone(),drawerMaterial=material.clone();
 let independentColors=false;
-function box(g,x,y,z,w,h,d,part='body'){if(w<=0||h<=0||d<=0)return;const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),independentColors?(part==='door'?doorMaterial:part==='drawer'?drawerMaterial:bodyMaterial):material);m.position.set(x,y,z);m.userData.partType=part;g.add(m)}
+function box(g,x,y,z,w,h,d,part='body'){if(w<=0||h<=0||d<=0)return;const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),independentColors?(part==='door'?doorMaterial:part==='drawer'?drawerMaterial:bodyMaterial):material);m.position.set(x,y,z);m.userData.partType=part;m.castShadow=true;m.receiveShadow=true;g.add(m)}
 function furniture(params,offset){const p=calculateCabinet(params),w=p.dimensions.width/1000,h=p.dimensions.height/1000,d=p.dimensions.depth/1000,t=Number(params.thickness||18)/1000;
  const g=new THREE.Group();g.position.x=offset;root.add(g);
  box(g,-w/2+t/2,0,0,t,h,d);box(g,w/2-t/2,0,0,t,h,d);box(g,0,-h/2+t/2,0,w-2*t,t,d);box(g,0,h/2-t/2,0,w-2*t,t,d);box(g,0,0,-d/2+.003,w,h,.006);
