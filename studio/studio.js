@@ -51,3 +51,26 @@ canvas.addEventListener('pointerup',()=>{drag=null});canvas.addEventListener('po
 
 // Modo interno: oculta apenas portas e frentes de gaveta, mantendo a estrutura.
 document.getElementById('interior').addEventListener('click',()=>{showFront=!showFront;for(const front of fronts)front.visible=showFront;document.getElementById('interior').textContent=showFront?'Ver parte interna':'Mostrar portas e gavetas';render()});
+
+
+// Ponte independente: transfere uma estimativa para revisão no Gestão, sem gravar no Supabase.
+const transferButton=document.getElementById('send-to-gestao');
+transferButton?.addEventListener('click',()=>{
+ try{
+  if(!project)throw new Error('Atualize o projeto antes de transferir.');
+  const result=calculateCabinet(project.params);
+  const sheetW=Number(document.getElementById('sheet-width').value);
+  const sheetH=Number(document.getElementById('sheet-height').value);
+  const waste=Number(project.params.wastePercent??15);
+  if(!Number.isFinite(sheetW)||!Number.isFinite(sheetH)||sheetW<=0||sheetH<=0)throw new Error('Dimensões de chapa inválidas.');
+  const byThickness=new Map();
+  for(const part of result.parts){
+   const thickness=Number(part.thickness),area=part.qty*part.width*part.height/1e6;
+   byThickness.set(thickness,(byThickness.get(thickness)||0)+area);
+  }
+  const sheets=[...byThickness].map(([thickness,areaM2])=>({thickness,areaM2,quantity:Math.ceil(areaM2*(1+waste/100)/(sheetW*sheetH/1e6)),width:sheetW,height:sheetH}));
+  const payload={schemaVersion:1,source:'vertice-studio',kind:'quote-material-estimate',createdAt:new Date().toISOString(),parts:result.parts,sheets,edgeMeters:result.edgeM,warning:'Estimativa por área, NÃO é plano de corte otimizado; validar encaixe, sentido do veio e perdas antes de comprar.'};
+  localStorage.setItem('vertice:studio:quote-transfer:v1',JSON.stringify(payload));
+  report('Estimativa enviada. Abra um orçamento no Gestão e use Importar do Studio.');
+ }catch(err){report(err.message)}
+});
