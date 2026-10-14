@@ -129,6 +129,7 @@ transferButton?.addEventListener('click',()=>{
   const sheets=[...byThickness].map(([thickness,areaM2])=>({thickness,areaM2,quantity:Math.ceil(areaM2*(1+waste/100)/(sheetW*sheetH/1e6)),width:sheetW,height:sheetH}));
   const payload={schemaVersion:1,source:'vertice-studio',kind:'quote-material-estimate',createdAt:new Date().toISOString(),parts:result.parts,sheets,hardware:result.hardware,edgeMeters:result.edgeM,warning:'Quantitativos preliminares: confirmar ferragens, carga, medidas, compatibilidade e plano de corte antes da compra.'};
   localStorage.setItem('vertice:studio:quote-transfer:v1',JSON.stringify(payload));
-  report('Estimativa enviada. Abra um orçamento no Gestão e use Importar do Studio.');
+  report('Estimativa enviada. Abrindo o Gestão para selecionar um orçamento...');
+  window.location.assign('../index.html#studio-import');
  }catch(err){report(err.message)}
 });
