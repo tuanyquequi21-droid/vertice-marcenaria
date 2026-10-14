@@ -137,7 +137,7 @@ canvas.addEventListener('pointermove',e=>{
  }else if(drag){
   const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
   if(drag.mode==='pan')panCamera(dx,dy);
-  else{viewAzimuth-=dx*.005;viewElevation+=dy*.005;updateCamera()}
+  else{viewAzimuth-=dx*.004;viewElevation-=dy*.004;updateCamera()}
   drag.x=e.clientX;drag.y=e.clientY;
  }
 });
@@ -208,7 +208,7 @@ function renderPresentationList(){
   const option=document.createElement('option');option.value=String(i);option.textContent=(presentationLabels[i]?.name||'Módulo '+(i+1))+' ('+params.width+' × '+params.height+' mm)';placementSelect.append(option);
   const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid #ddd';
   const name=document.createElement('span');name.style.flex='1';name.textContent=(presentationLabels[i]?.name||'Módulo '+(i+1))+' ['+(presentationLabels[i]?.type||'móvel')+'] — '+params.width+' × '+params.height+' × '+params.depth+' mm';
-  const edit=document.createElement('button');edit.type='button';edit.textContent='Editar';edit.onclick=()=>{applyProject({schemaVersion:1,kind:'cabinet',params});document.getElementById('module-name').value=presentationLabels[i]?.name||'';document.getElementById('module-type').value=presentationLabels[i]?.type||'outro';presentationPreview=false;presentationGroup.visible=false;group.visible=true;render();presentationReport('Módulo '+(i+1)+' carregado. Após alterar, clique em “Substituir módulo” para atualizar a apresentação.');selectedPresentationIndex=i;document.getElementById('add-presentation-module').textContent='Substituir módulo selecionado'};
+  const edit=document.createElement('button');edit.type='button';edit.textContent='Editar';edit.onclick=()=>{if(params._colors)applyComponentColors(params._colors);applyProject({schemaVersion:1,kind:'cabinet',params});document.getElementById('module-name').value=presentationLabels[i]?.name||'';document.getElementById('module-type').value=presentationLabels[i]?.type||'outro';presentationPreview=false;presentationGroup.visible=false;group.visible=true;render();presentationReport('Módulo '+(i+1)+' carregado. Após alterar, clique em “Substituir módulo” para atualizar a apresentação.');selectedPresentationIndex=i;document.getElementById('add-presentation-module').textContent='Substituir módulo selecionado'};
   const remove=document.createElement('button');remove.type='button';remove.textContent='Remover';remove.onclick=()=>{presentationModules.splice(i,1);presentationPlacements.splice(i,1);presentationLabels.splice(i,1);selectedPresentationIndex=-1;document.getElementById('add-presentation-module').textContent='Adicionar móvel atual';renderPresentationList();if(presentationPreview)drawPresentation();};
   row.append(name,edit,remove);list.append(row);
  });
@@ -244,6 +244,7 @@ function drawPresentation(){
   for(let j=0;j<doors;j++){presentationBox(g,stack?0:-w/2+(j+.5)*w/doors,stack?dh/2-ph/2+(j+.5)*ph/doors:dh/2,d/2+.012,stack?w-.006:w/doors-.006,stack?ph/doors-.004:ph-.004,t);const front=g.children[g.children.length-1];front.userData.partType='door';if(componentColorsActive)front.material=doorMaterial;}
   const drawers=Number(params.drawers||0),bayX=-w/2+t+(p.layout.drawerBay-.5)*p.layout.bayWidth/1000+(p.layout.drawerBay-1)*t;
   for(let j=0;j<drawers;j++){presentationBox(g,bayX,-h/2+(j+.5)*dh/drawers,d/2+.012,p.layout.bayWidth/1000-.006,dh/drawers-.004,t);const front=g.children[g.children.length-1];front.userData.partType='drawer';if(componentColorsActive)front.material=drawerMaterial;}
+  if(params._colors){for(const mesh of g.children){const key=mesh.userData.partType==='door'?'doors':mesh.userData.partType==='drawer'?'drawers':'body';if(/^#[0-9a-fA-F]{6}$/.test(params._colors[key]||'')){mesh.material=mesh.material.clone();mesh.material.map=null;mesh.material.color.set(params._colors[key]);}}}
  }
  presentationPreview=true;group.visible=false;presentationGroup.visible=true;
  const bounds=new THREE.Box3().setFromObject(presentationGroup),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
@@ -273,6 +274,7 @@ document.getElementById('preview-current').addEventListener('click',()=>{present
 function syncCurrentCabinetForSharing(){
  const params=Object.fromEntries(new FormData(document.getElementById('form')));
  calculateCabinet(params);
+ if(componentColorsActive)params._colors=componentColors();
  const label={name:(document.getElementById('module-name').value.trim()||'Móvel em edição').slice(0,100),type:document.getElementById('module-type').value};
  if(selectedPresentationIndex>=0&&presentationModules[selectedPresentationIndex]){
   presentationModules[selectedPresentationIndex]={...params};
@@ -416,9 +418,9 @@ canvas.addEventListener('pointermove',e=>{
  const up=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
  const scale=2*viewDistance*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)/(host.clientHeight||450)*1000;
  const p={...placementFor(movingPointer.index)};
- p.x=Math.round((p.x+(dx*right.x-dy*up.x)*scale)/10)*10;
- p.y=Math.round((p.y+(-dx*right.y+dy*up.y)*scale)/10)*10;
- p.z=Math.round((p.z+(dx*right.z-dy*up.z)*scale)/10)*10;
+ p.x=p.x+(dx*right.x-dy*up.x)*scale;
+ p.y=p.y+(dx*right.y-dy*up.y)*scale;
+ p.z=p.z+(dx*right.z-dy*up.z)*scale;
  presentationPlacements[movingPointer.index]=p;
  const g=presentationGroup.children[movingPointer.index];
  if(g){const baseline=-presentationModules.reduce((s,m)=>s+Number(m.width)/1000,0)/2-(presentationModules.length-1)*.03+presentationModules.slice(0,movingPointer.index).reduce((s,m)=>s+Number(m.width)/1000+.06,0)+Number(presentationModules[movingPointer.index].width)/2000;g.position.set(baseline+p.x/1000,p.y/1000,p.z/1000)}
@@ -622,7 +624,10 @@ legacyImport.addEventListener('change',async e=>{
 
 document.getElementById('apply-component-colors').addEventListener('click',()=>{
  applyComponentColors({body:document.getElementById('cabinet-body-color').value,doors:document.getElementById('cabinet-door-color').value,drawers:document.getElementById('cabinet-drawer-color').value});
- presentationReport('Cores de estrutura, portas e gavetas aplicadas. Gere um novo link 3D.');
+ const i=Number(document.getElementById('placement-module').value);
+ if(presentationModules[i]&&presentationPreview){presentationModules[i]._colors=componentColors();drawPresentation();presentationReport('Cores aplicadas ao módulo selecionado: '+(presentationLabels[i]?.name||'Módulo '+(i+1))+'.');}
+ else if(selectedPresentationIndex>=0&&presentationModules[selectedPresentationIndex]){presentationModules[selectedPresentationIndex]._colors=componentColors();presentationReport('Cores do módulo em edição atualizadas.');}
+ else presentationReport('Cores aplicadas ao móvel atual. Adicione-o à apresentação para salvar o acabamento.');
 });
 document.getElementById('align-modules').addEventListener('click',()=>{
  if(!presentationModules.length)return presentationReport('Adicione móveis antes de alinhar.');
