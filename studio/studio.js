@@ -186,6 +186,7 @@ transferButton?.addEventListener('click',()=>{
 // Apresentação pública somente leitura. O link codifica apenas medidas/configuração dos módulos.
 // Não inclui foto, dados do cliente, custos nem credenciais.
 const presentationModules=[];
+const presentationPlacements=[];
 let presentationPreview=false;
 const presentationGroup=new THREE.Group();scene.add(presentationGroup);
 const presentationStatus=document.getElementById('presentation-status');
@@ -193,17 +194,25 @@ const presentationCount=document.getElementById('presentation-count');
 function presentationReport(message){presentationStatus.textContent=message}
 function renderPresentationList(){
  const list=document.getElementById('presentation-module-list');list.replaceChildren();
+ const placementSelect=document.getElementById('placement-module');const oldChoice=placementSelect.value;placementSelect.replaceChildren();
  presentationModules.forEach((params,i)=>{
+  const option=document.createElement('option');option.value=String(i);option.textContent='Módulo '+(i+1)+' ('+params.width+' × '+params.height+' mm)';placementSelect.append(option);
   const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid #ddd';
   const name=document.createElement('span');name.style.flex='1';name.textContent='Módulo '+(i+1)+' — '+params.width+' × '+params.height+' × '+params.depth+' mm';
   const edit=document.createElement('button');edit.type='button';edit.textContent='Editar';edit.onclick=()=>{applyProject({schemaVersion:1,kind:'cabinet',params});presentationPreview=false;presentationGroup.visible=false;group.visible=true;render();presentationReport('Módulo '+(i+1)+' carregado. Após alterar, clique em “Substituir módulo” para atualizar a apresentação.');selectedPresentationIndex=i;document.getElementById('add-presentation-module').textContent='Substituir módulo selecionado'};
-  const remove=document.createElement('button');remove.type='button';remove.textContent='Remover';remove.onclick=()=>{presentationModules.splice(i,1);selectedPresentationIndex=-1;document.getElementById('add-presentation-module').textContent='Adicionar móvel atual';renderPresentationList();if(presentationPreview)drawPresentation();};
+  const remove=document.createElement('button');remove.type='button';remove.textContent='Remover';remove.onclick=()=>{presentationModules.splice(i,1);presentationPlacements.splice(i,1);selectedPresentationIndex=-1;document.getElementById('add-presentation-module').textContent='Adicionar móvel atual';renderPresentationList();if(presentationPreview)drawPresentation();};
   row.append(name,edit,remove);list.append(row);
  });
  presentationCount.textContent=presentationModules.length+' módulo(s) na apresentação.';
+ if(presentationModules.length){placementSelect.value=String(Math.min(Number(oldChoice)||0,presentationModules.length-1));loadPlacement()}
  document.getElementById('presentation-link').value='';
 }
 let selectedPresentationIndex=-1;
+function placementFor(i){return presentationPlacements[i]||{x:0,y:0,z:0,rotation:0}}
+function loadPlacement(){const p=placementFor(Number(document.getElementById('placement-module').value));for(const key of ['x','y','z','rotation'])document.getElementById('placement-'+key).value=p[key]||0}
+document.getElementById('placement-module').addEventListener('change',loadPlacement);
+document.getElementById('apply-placement').addEventListener('click',()=>{const i=Number(document.getElementById('placement-module').value);if(!presentationModules[i])return presentationReport('Adicione um móvel antes de posicionar.');const p={};for(const key of ['x','y','z','rotation']){p[key]=Number(document.getElementById('placement-'+key).value);if(!Number.isFinite(p[key])||Math.abs(p[key])>100000)return presentationReport('Posição inválida.')}presentationPlacements[i]=p;drawPresentation();presentationReport('Posição 3D atualizada para o módulo '+(i+1)+'.')});
+document.getElementById('view-placement').addEventListener('click',()=>{viewAzimuth=.48;viewElevation=.22;updateCamera()});
 function presentationBox(parent,x,y,z,w,h,d){
  if(w<=0||h<=0||d<=0)return;
  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);parent.add(mesh);
@@ -214,7 +223,8 @@ function drawPresentation(){
  total+=Math.max(0,data.length-1)*.06;let offset=-total/2;
  for(const {params,p} of data){
   const w=p.dimensions.width/1000,h=p.dimensions.height/1000,d=p.dimensions.depth/1000,t=Number(params.thickness)/1000;
-  const g=new THREE.Group();g.position.x=offset+w/2;presentationGroup.add(g);offset+=w+.06;
+  const index=data.findIndex(item=>item.params===params),placement=placementFor(index);
+  const g=new THREE.Group();g.position.set(offset+w/2+placement.x/1000,placement.y/1000,placement.z/1000);g.rotation.y=THREE.MathUtils.degToRad(placement.rotation);presentationGroup.add(g);offset+=w+.06;
   presentationBox(g,-w/2+t/2,0,0,t,h,d);presentationBox(g,w/2-t/2,0,0,t,h,d);
   presentationBox(g,0,-h/2+t/2,0,w-2*t,t,d);presentationBox(g,0,h/2-t/2,0,w-2*t,t,d);presentationBox(g,0,0,-d/2+.003,w,h,.006);
   const shelves=Number(params.shelves||0);
@@ -227,7 +237,8 @@ function drawPresentation(){
   for(let j=0;j<drawers;j++)presentationBox(g,bayX,-h/2+(j+.5)*dh/drawers,d/2+.012,p.layout.bayWidth/1000-.006,dh/drawers-.004,t);
  }
  presentationPreview=true;group.visible=false;presentationGroup.visible=true;
- modelWidth=total;modelHeight=maxHeight;modelDepth=Math.max(.55,...data.map(x=>x.p.dimensions.depth/1000));modelSize=Math.sqrt(modelWidth**2+modelHeight**2+modelDepth**2);resetCamera();
+ const bounds=new THREE.Box3().setFromObject(presentationGroup),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
+ modelWidth=Math.max(total,size.x);modelHeight=Math.max(maxHeight,size.y);modelDepth=Math.max(.55,size.z);modelSize=Math.sqrt(modelWidth**2+modelHeight**2+modelDepth**2);resetCamera();viewTarget.copy(center);updateCamera();
 }
 document.getElementById('add-presentation-module').addEventListener('click',()=>{
  try{
@@ -236,13 +247,13 @@ document.getElementById('add-presentation-module').addEventListener('click',()=>
   else{
    if(presentationModules.some(m=>JSON.stringify(m)===JSON.stringify(params)))return presentationReport('Este móvel já está na apresentação. Altere as medidas ou selecione “Editar” para substituir um módulo.');
    if(presentationModules.length>=15)throw Error('Limite de 15 módulos por apresentação.');
-   presentationModules.push(params);presentationReport('Móvel adicionado. Configure outro móvel ou visualize a composição.');
+   presentationModules.push(params);presentationPlacements.push({x:0,y:0,z:0,rotation:0});presentationReport('Móvel adicionado. Configure outro móvel ou visualize a composição.');
   }
   renderPresentationList();drawPresentation();
  }catch(e){presentationReport(e.message)}
 });
 document.getElementById('clear-presentation').addEventListener('click',()=>{
- presentationModules.length=0;selectedPresentationIndex=-1;document.getElementById('add-presentation-module').textContent='Adicionar móvel atual';renderPresentationList();
+ presentationModules.length=0;presentationPlacements.length=0;selectedPresentationIndex=-1;document.getElementById('add-presentation-module').textContent='Adicionar móvel atual';renderPresentationList();
  presentationPreview=false;presentationGroup.visible=false;group.visible=true;resetCamera();presentationReport('Módulos removidos da apresentação.');
 });
 document.getElementById('preview-presentation').addEventListener('click',()=>{
@@ -251,7 +262,7 @@ document.getElementById('preview-presentation').addEventListener('click',()=>{
 document.getElementById('preview-current').addEventListener('click',()=>{presentationPreview=false;presentationGroup.visible=false;group.visible=true;const params=Object.fromEntries(new FormData(document.getElementById('form')));draw(calculateCabinet(params));presentationReport('Exibindo o móvel em edição.')});
 document.getElementById('create-presentation-link').addEventListener('click',()=>{
  try{if(!presentationModules.length)throw Error('Adicione pelo menos um móvel à apresentação.');
- const payload={version:1,title:document.getElementById('presentation-title').value.trim().slice(0,100),modules:presentationModules};
+ const payload={version:1,title:document.getElementById('presentation-title').value.trim().slice(0,100),modules:presentationModules,placements:presentationPlacements};
  const bytes=new TextEncoder().encode(JSON.stringify(payload));let binary='';for(const b of bytes)binary+=String.fromCharCode(b);
  const token=btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
  if(token.length>15000)throw Error('Apresentação muito grande para link. Reduza o número de módulos.');
