@@ -20,6 +20,12 @@
    if(document.getElementById('pageTitle')?.textContent==='Orçamentos'){
     routePending=false;
     history.replaceState(null,'',location.pathname+location.search);
+    // Abre a edição de um novo orçamento para revisar os materiais recebidos.
+    if(typeof openQuote==='function'){
+     await openQuote();
+     const importButton=document.getElementById('studio-quote-import');
+     if(importButton)importButton.click();
+    }
    }
   }catch(e){console.warn('Studio: não foi possível abrir Orçamentos',e)}
   finally{routeBusy=false}
