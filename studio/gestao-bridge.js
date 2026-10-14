@@ -9,6 +9,21 @@
    return d;
   }catch{return null}
  }
+ let routePending=location.hash==='#studio-import',routeBusy=false;
+ async function routeToQuotes(){
+  if(!routePending||routeBusy||!getDraft())return;
+  const app=document.getElementById('app');
+  if(!app||app.classList.contains('hidden')||typeof page!=='function')return;
+  routeBusy=true;
+  try{
+   await page('orcamentos');
+   if(document.getElementById('pageTitle')?.textContent==='Orçamentos'){
+    routePending=false;
+    history.replaceState(null,'',location.pathname+location.search);
+   }
+  }catch(e){console.warn('Studio: não foi possível abrir Orçamentos',e)}
+  finally{routeBusy=false}
+ }
  function installNotice(){
   const draft=getDraft(),title=document.getElementById('pageTitle');
   if(!title)return;
@@ -19,13 +34,14 @@
   banner.style.cssText='background:#fff8e7;border:1px solid #c6a65d;color:#40341e;padding:12px 14px;margin:12px 0;border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap';
   const message=document.createElement('span');message.textContent='Materiais do Studio aguardando importação. Abra ou crie um orçamento e clique em “Importar materiais do Studio”.';
   const go=document.createElement('button');go.type='button';go.className='btn small';go.textContent='Ir para Orçamentos';
-  go.onclick=()=>{if(typeof page==='function')page('orcamentos');else alert('Abra a seção Orçamentos pelo menu.');};
+  go.onclick=()=>{routePending=true;routeToQuotes()};
   const dismiss=document.createElement('button');dismiss.type='button';dismiss.className='btn small';dismiss.textContent='Ocultar aviso';
   dismiss.onclick=()=>{noticeDismissed=true;banner.remove()};
   banner.append(message,go,dismiss);
   title.insertAdjacentElement('afterend',banner);
  }
  function install(){
+  if(routePending)queueMicrotask(routeToQuotes);
   installNotice();
   const materialLines=document.getElementById('materialLines');
   if(!materialLines||document.getElementById('studio-quote-import'))return;
