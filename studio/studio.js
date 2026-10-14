@@ -320,7 +320,7 @@ document.getElementById('duplicate-module').addEventListener('click',()=>{
 // Interação direta: separar navegação da câmera do arrasto de módulos.
 let interactionMode='view',movingPointer=null,selectedOutline=null;
 const groundGrid=new THREE.GridHelper(12,24,0x8d7955,0x555555);
-groundGrid.position.y=-1.12;groundGrid.material.transparent=true;groundGrid.material.opacity=.28;scene.add(groundGrid);
+groundGrid.position.y=-1.12;groundGrid.material.transparent=true;groundGrid.material.opacity=.28;groundGrid.visible=false;scene.add(groundGrid);
 function syncInteractionMode(){
  document.getElementById('mode-view').setAttribute('aria-pressed',String(interactionMode==='view'));
  document.getElementById('mode-move').setAttribute('aria-pressed',String(interactionMode==='move'));
@@ -531,3 +531,59 @@ canvas.addEventListener('pointerdown',e=>{
 },true);
 canvas.addEventListener('pointermove',e=>{if(photoComposeActive)e.stopImmediatePropagation()},true);
 canvas.addEventListener('wheel',e=>{if(photoComposeActive){e.preventDefault();e.stopImmediatePropagation()}}, {capture:true,passive:false});
+
+// Persistência local completa (v2): mantém compatibilidade com o formato legado.
+const STUDIO_COMPLETE_KEY='vertice:studio:complete-project:v2';
+function studioSnapshot(){
+ const params=Object.fromEntries(new FormData(document.getElementById('form')));
+ calculateCabinet(params);
+ return {schemaVersion:2,kind:'vertice-studio',savedAt:new Date().toISOString(),
+  current:params,modules:presentationModules.map((m,i)=>({
+   params:{...m},placement:{...placementFor(i)},label:{...(presentationLabels[i]||{})}
+  }))};
+}
+function restoreStudioSnapshot(snapshot){
+ if(!snapshot||snapshot.schemaVersion!==2||snapshot.kind!=='vertice-studio'||!Array.isArray(snapshot.modules)||snapshot.modules.length>100)throw Error('Projeto Studio incompatível.');
+ calculateCabinet(snapshot.current);
+ const entries=snapshot.modules.map(item=>{
+  if(!item||!item.params||!item.placement)throw Error('Módulo inválido.');
+  calculateCabinet(item.params);
+  const placement={};
+  for(const key of ['x','y','z','rotation']){
+   const n=Number(item.placement[key]||0);
+   if(!Number.isFinite(n)||Math.abs(n)>100000)throw Error('Posicionamento inválido.');
+   placement[key]=n;
+  }
+  return {params:item.params,placement,label:{name:String(item.label?.name||'').slice(0,100),type:String(item.label?.type||'outro').slice(0,40)}};
+ });
+ applyProject({schemaVersion:1,kind:'cabinet',params:snapshot.current});
+ presentationModules.splice(0,presentationModules.length,...entries.map(x=>x.params));
+ presentationPlacements.splice(0,presentationPlacements.length,...entries.map(x=>x.placement));
+ presentationLabels.splice(0,presentationLabels.length,...entries.map(x=>x.label));
+ selectedPresentationIndex=-1;
+ document.getElementById('add-presentation-module').textContent='Adicionar móvel atual';
+ renderPresentationList();
+ if(presentationModules.length)drawPresentation();
+ report('Projeto completo recuperado: '+entries.length+' módulo(s).');
+}
+const legacySave=document.getElementById('save'),legacyLoad=document.getElementById('load'),legacyExport=document.getElementById('export'),legacyImport=document.getElementById('import');
+for(const button of [legacySave,legacyLoad,legacyExport])button.addEventListener('click',e=>e.stopImmediatePropagation(),true);
+legacySave.addEventListener('click',()=>{
+ try{localStorage.setItem(STUDIO_COMPLETE_KEY,JSON.stringify(studioSnapshot()));report('Projeto completo salvo neste navegador, incluindo módulos e posições. Foto e texturas continuam em armazenamento separado.')}catch(e){report('Falha ao salvar: '+e.message)}
+});
+legacyLoad.addEventListener('click',()=>{
+ try{const saved=localStorage.getItem(STUDIO_COMPLETE_KEY);if(saved)restoreStudioSnapshot(JSON.parse(saved));
+ else{const old=localStorage.getItem(storageKey);if(!old)throw Error('Nenhum projeto local encontrado.');applyProject(JSON.parse(old));report('Projeto antigo recuperado (apenas móvel atual).')}}
+ catch(e){report('Falha ao abrir: '+e.message)}
+});
+legacyExport.addEventListener('click',()=>{
+ try{download('vertice-studio-projeto-completo.json',JSON.stringify(studioSnapshot(),null,2),'application/json');report('Backup completo de módulos e posições exportado. A foto e os arquivos de textura não estão incluídos.')}
+ catch(e){report('Falha ao exportar: '+e.message)}
+});
+legacyImport.addEventListener('change',async e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ e.stopImmediatePropagation();
+ try{if(file.size>2000000)throw Error('Arquivo maior que 2 MB.');const data=JSON.parse(await file.text());if(data.schemaVersion===2)restoreStudioSnapshot(data);else{applyProject(data);report('Projeto legado importado.')}}
+ catch(err){report('Falha na importação: '+err.message)}
+ finally{e.target.value=''}
+},true);
