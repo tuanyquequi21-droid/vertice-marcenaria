@@ -101,7 +101,7 @@ function updateCamera(){
  viewElevation=THREE.MathUtils.clamp(viewElevation,-1.35,1.35);
  viewDistance=THREE.MathUtils.clamp(viewDistance,modelSize*.6,modelSize*12);
  camera.position.set(viewTarget.x+viewDistance*Math.sin(viewAzimuth)*Math.cos(viewElevation),viewTarget.y+viewDistance*Math.sin(viewElevation),viewTarget.z+viewDistance*Math.cos(viewAzimuth)*Math.cos(viewElevation));
- camera.lookAt(viewTarget);render();
+ camera.lookAt(viewTarget);if(roomEnabled)rebuildRoom();render();
 }
 function resetCamera(){viewTarget.set(0,0,0);viewAzimuth=.48;viewElevation=.22;viewDistance=cameraFitDistance();updateCamera();}
 function zoomCamera(factor){viewDistance*=factor;updateCamera();}
@@ -114,6 +114,58 @@ function panCamera(dx,dy){
  viewTarget.addScaledVector(right,-dx*scale).addScaledVector(up,dy*scale);
  updateCamera();
 }
+// Ambiente 3D procedural: mantém os móveis originais e adiciona cenário não estrutural.
+const room=new THREE.Group();scene.add(room);room.visible=false;
+let roomEnabled=false,roomKind='bedroom';
+function roomMesh(w,h,d,x,y,z,color,roughness=.8){
+ const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness}));
+ mesh.position.set(x,y,z);mesh.receiveShadow=true;room.add(mesh);return mesh;
+}
+function rebuildRoom(){
+ while(room.children.length){const child=room.children[0];room.remove(child);child.geometry?.dispose();child.material?.dispose()}
+ const furniture=presentationPreview&&presentationGroup.visible?presentationGroup:group;
+ const bounds=new THREE.Box3().setFromObject(furniture);
+ if(bounds.isEmpty())return;
+ const center=bounds.getCenter(new THREE.Vector3()),size=bounds.getSize(new THREE.Vector3());
+ const width=Math.max(4.4,size.x+2.6),depth=Math.max(4.1,size.z+2.8),height=Math.max(2.85,size.y+0.65);
+ const floorY=bounds.min.y-.015,backZ=center.z-depth*.5;
+ const palettes={
+  bedroom:['#e9e1d6','#bfa88c','#d8c9b5'],
+  kitchen:['#ecebe6','#c9c8c3','#d2d6d2'],
+  living:['#e4e0d8','#b79c7e','#d4c6b6'],
+  bathroom:['#d9ddd9','#c9cbc8','#aebdbd'],
+  office:['#e1e1dc','#a58b70','#d0c8bc']
+ };
+ const [wall,floor,accent]=palettes[roomKind]||palettes.bedroom;
+ roomMesh(width,.06,depth,center.x,floorY-.035,center.z,floor);
+ roomMesh(width,height,.08,center.x,floorY+height/2,backZ,wall);
+ roomMesh(.08,height,depth,center.x-width/2,floorY+height/2,center.z,wall);
+ // Rodapé e painel decorativo, sem modificar as peças do projeto.
+ roomMesh(width-.15,.11,.025,center.x,floorY+.065,backZ+.06,'#f9f8f4');
+ roomMesh(Math.min(width*.32,1.2),height*.7,.025,center.x+width*.29,floorY+height*.55,backZ+.07,accent);
+ // Quadro na parede e luminária decorativa.
+ roomMesh(.72,.52,.035,center.x-width*.29,floorY+height*.65,backZ+.105,'#c1aa8b');
+ roomMesh(.59,.4,.04,center.x-width*.29,floorY+height*.65,backZ+.132,'#e9e2d5');
+ const lamp=new THREE.PointLight(0xffe4c4,11,5,2);lamp.position.set(center.x+width*.28,floorY+height*.83,backZ+.75);room.add(lamp);
+ room.visible=roomEnabled;
+}
+document.getElementById('room-type').addEventListener('change',e=>{roomKind=e.target.value;if(roomEnabled){rebuildRoom();render()}});
+document.getElementById('room-toggle').addEventListener('click',()=>{
+ roomEnabled=!roomEnabled;
+ document.getElementById('room-toggle').textContent=roomEnabled?'Ocultar ambiente':'Mostrar ambiente';
+ if(roomEnabled)rebuildRoom();else room.visible=false;
+ document.getElementById('room-status').textContent=roomEnabled?'Ambiente 3D ilustrativo ativo. Use a câmera para enquadrar o móvel.':'Ambiente oculto; visualização somente do móvel.';
+ render();
+});
+document.getElementById('room-snapshot').addEventListener('click',()=>{
+ const old=renderer.getPixelRatio();const w=host.clientWidth||800,h=host.clientHeight||600;
+ try{
+  renderer.setPixelRatio(Math.min(3,2400/Math.max(w,h)));
+  render();const url=renderer.domElement.toDataURL('image/png');
+  const a=document.createElement('a');a.href=url;a.download='vertice-studio-ambiente.png';a.click();
+ }catch(e){document.getElementById('room-status').textContent='Não foi possível salvar a imagem: '+e.message}
+ finally{renderer.setPixelRatio(old);render()}
+});
 function render(){const width=host.clientWidth||500,height=host.clientHeight||450;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();renderer.render(scene,camera)}
 new ResizeObserver(render).observe(host);
 function renderEdgeBanding(p){
