@@ -116,7 +116,27 @@ function panCamera(dx,dy){
 }
 function render(){const width=host.clientWidth||500,height=host.clientHeight||450;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();renderer.render(scene,camera)}
 new ResizeObserver(render).observe(host);
-document.getElementById('form').addEventListener('submit',e=>{e.preventDefault();try{const data=Object.fromEntries(new FormData(e.target));const p=calculateCabinet(data);project={schemaVersion:1,kind:'cabinet',params:data};draw(p);document.getElementById('error').textContent='';document.getElementById('totals').textContent='Área: '+p.areaM2.toFixed(2)+' m² | Fita: '+p.edgeM.toFixed(2)+' m | Materiais estimados: '+p.estimatedMaterialCost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});document.getElementById('hardware').replaceChildren(...p.hardware.map(item=>{const tr=document.createElement('tr');for(const value of [item.label,item.quantity,item.unit]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}));document.getElementById('parts').replaceChildren(...p.parts.map(part=>{const tr=document.createElement('tr');for(const value of [part.name,part.qty,part.width.toFixed(1)+' × '+part.height.toFixed(1)+' × '+part.thickness]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}))}catch(err){document.getElementById('error').textContent=err.message}});
+function renderEdgeBanding(p){
+ const wasteInput=document.getElementById('edge-waste-percent');
+ const waste=Number(wasteInput?.value??10);
+ const percent=Number.isFinite(waste)?THREE.MathUtils.clamp(waste,0,100):10;
+ const total=p.edgeM*(1+percent/100);
+ const rate=Number(document.querySelector('[name=edgePricePerM]').value)||0;
+ const currency=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+ document.getElementById('edge-summary').textContent='Metragem calculada: '+p.edgeM.toFixed(2)+' m | Perda: '+percent+'% | Compra estimada: '+total.toFixed(2)+' m | Custo da fita com perda: '+currency(total*rate)+'.';
+ const rows=p.parts.filter(part=>part.edgeMm>0).map(part=>{
+  const tr=document.createElement('tr');
+  for(const value of [part.name,part.qty,(part.edgeMm/1000).toFixed(2)+' m',(part.edgeMm*part.qty/1000).toFixed(2)+' m']){
+   const td=document.createElement('td');td.textContent=value;tr.append(td);
+  }
+  return tr;
+ });
+ document.getElementById('edge-details').replaceChildren(...rows);
+}
+document.getElementById('edge-waste-percent').addEventListener('change',()=>{
+ try{renderEdgeBanding(calculateCabinet(Object.fromEntries(new FormData(document.getElementById('form')))))}catch(e){document.getElementById('edge-summary').textContent=e.message}
+});
+document.getElementById('form').addEventListener('submit',e=>{e.preventDefault();try{const data=Object.fromEntries(new FormData(e.target));const p=calculateCabinet(data);project={schemaVersion:1,kind:'cabinet',params:data};draw(p);renderEdgeBanding(p);document.getElementById('error').textContent='';document.getElementById('totals').textContent='Área: '+p.areaM2.toFixed(2)+' m² | Fita: '+p.edgeM.toFixed(2)+' m | Materiais estimados: '+p.estimatedMaterialCost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});document.getElementById('hardware').replaceChildren(...p.hardware.map(item=>{const tr=document.createElement('tr');for(const value of [item.label,item.quantity,item.unit]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}));document.getElementById('parts').replaceChildren(...p.parts.map(part=>{const tr=document.createElement('tr');for(const value of [part.name,part.qty,part.width.toFixed(1)+' × '+part.height.toFixed(1)+' × '+part.thickness]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}))}catch(err){document.getElementById('error').textContent=err.message}});
 queueMicrotask(()=>document.getElementById('form').requestSubmit());
 document.getElementById('doorSwingField').hidden=false;
 document.getElementById('flapLayoutField').hidden=true;
