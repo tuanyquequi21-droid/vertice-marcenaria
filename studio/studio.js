@@ -21,10 +21,14 @@ function draw(p){fronts.length=0;doorMeta=[];doorsOpened=false;while(group.child
  if(doors&&drawers)addBox(0,-H/2+DH,0,W-2*T,T,D-.006);
  for(let i=0;i<doors;i++){
   const type=p.layout.doorType,overlap=Math.min(.03,W*.025),leafWidth=type==='sliding'?W/doors+overlap:W/doors-.006;
-  const x=-W/2+(i+.5)*W/doors,z=D/2+.012+(type==='sliding'?(i%2)*(.012+T):0);
-  addBox(x,DH/2,z,leafWidth,PH-.004,T);
+  const flap=type==='flap-down';
+  const panelW=flap?W-.006:leafWidth,panelH=flap?PH/doors-.004:PH-.004;
+  const x=flap?0:-W/2+(i+.5)*W/doors;
+  const y=flap?DH/2-PH/2+(i+.5)*PH/doors:DH/2;
+  const z=D/2+.012+(type==='sliding'?(i%2)*(.012+T):0);
+  addBox(x,y,z,panelW,panelH,T);
   const mesh=group.children[group.children.length-1];fronts.push(mesh);
-  doorMeta.push({mesh,type,index:i,closed:{x,y:DH/2,z},width:leafWidth,height:PH-.004,swing:p.layout.doorSwing});
+  doorMeta.push({mesh,type,index:i,closed:{x,y,z},width:panelW,height:panelH,swing:p.layout.doorSwing});
  }
  const bayW=p.layout.bayWidth/1000,bayX=-W/2+T+(p.layout.drawerBay-.5)*bayW+(p.layout.drawerBay-1)*T;
  for(let i=0;i<drawers;i++){addBox(bayX,-H/2+(i+.5)*DH/drawers,D/2+.012,bayW-.006,DH/drawers-.004,T);fronts.push(group.children[group.children.length-1])}
@@ -38,7 +42,7 @@ function updateDoorPreview(){
   mesh.rotation.set(0,0,0);mesh.position.set(closed.x,closed.y,closed.z);
   if(!doorsOpened)continue;
   if(type==='sliding'){mesh.position.x=closed.x+(index%2===0?1:-1)*Math.min(width*.45,.24);}
-  else if(type==='flap-down'){mesh.rotation.x=-Math.PI/3;mesh.position.y=closed.y-height*.22;mesh.position.z=closed.z+height*.28;}
+  else if(type==='flap-down'){mesh.rotation.x=-Math.PI/3;mesh.position.y=closed.y-height*.25;mesh.position.z=closed.z+height*.38;}
   else{mesh.rotation.y=(swing==='left'?-1:1)*Math.PI/3;mesh.position.x=closed.x+(swing==='left'?-1:1)*width*.22;mesh.position.z=closed.z+width*.22;}
  }
  render();
