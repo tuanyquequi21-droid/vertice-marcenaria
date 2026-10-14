@@ -1,6 +1,6 @@
 import {calculateCabinet} from './engine.mjs';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
-import {RoundedBoxGeometry} from 'https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/geometries/RoundedBoxGeometry.js';
+
 const host=document.getElementById('scene'),error=document.getElementById('error');
 // Bordas discretamente arredondadas simulam a quina real do MDF com fita de borda.
 const cabinetGeometryCache=new Map();
@@ -8,7 +8,7 @@ function cabinetGeometry(w,h,d){
  const key=[w,h,d].map(v=>v.toFixed(5)).join('|');
  if(!cabinetGeometryCache.has(key)){
   const radius=Math.min(.0015,Math.min(w,h,d)*.18);
-  cabinetGeometryCache.set(key,new RoundedBoxGeometry(w,h,d,2,radius));
+  cabinetGeometryCache.set(key,new THREE.BoxGeometry(w,h,d));
  }
  return cabinetGeometryCache.get(key);
 }
