@@ -287,10 +287,10 @@ function syncCurrentCabinetForSharing(){
 }
 document.getElementById('create-presentation-link').addEventListener('click',()=>{
  try{syncCurrentCabinetForSharing();if(!presentationModules.length)throw Error('Adicione pelo menos um móvel à apresentação.');
- const payload={version:1,title:document.getElementById('presentation-title').value.trim().slice(0,100),modules:presentationModules,placements:presentationPlacements,labels:presentationLabels};
+ const payload={version:1,title:document.getElementById('presentation-title').value.trim().slice(0,100),modules:presentationModules,placements:presentationPlacements,labels:presentationLabels,finish:{color:'#'+material.color.getHexString(),image:activeShareFinishImage||null}};
  const bytes=new TextEncoder().encode(JSON.stringify(payload));let binary='';for(const b of bytes)binary+=String.fromCharCode(b);
  const token=btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
- if(token.length>15000)throw Error('Apresentação muito grande para link. Reduza o número de módulos.');
+ if(token.length>15000)throw Error('O link ficou grande demais para incluir a textura. Utilize um acabamento de cor sólida ou aguarde o compartilhamento de imagens na nuvem.');
  const url=new URL('./apresentacao.html',location.href);url.hash=token;
  document.getElementById('presentation-link').value=url.href;
  presentationReport('Link criado com '+presentationModules.length+' módulo(s). O cliente poderá explorar sem editar. A foto ainda não acompanha o link.');
@@ -422,6 +422,7 @@ canvas.addEventListener('pointercancel',stopMoving,true);
 syncInteractionMode();
 
 const FINISH_KEY='vertice:studio:finishes:v1';
+let activeShareFinishImage=null;
 let finishes=[];
 try{finishes=JSON.parse(localStorage.getItem(FINISH_KEY)||'[]');if(!Array.isArray(finishes))finishes=[]}catch{finishes=[]}
 function finishReport(msg){document.getElementById('finish-status').textContent=msg}
@@ -431,7 +432,8 @@ function refreshFinishes(){
  if(finishes.length)select.value=old&&Number(old)<finishes.length?old:'0';
 }
 function applyFinish(f){
- material.color.set(f.color||'#bda889');
+ activeShareFinishImage=f.image||null;
+ material.color.set(f.image?'#ffffff':(f.color||'#bda889'));
  if(material.map){material.map.dispose();material.map=null}
  if(f.image){
   new THREE.TextureLoader().load(f.image,texture=>{
