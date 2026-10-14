@@ -190,7 +190,7 @@ const _v8Page=page;
 page=function(name){
  if(!v8AllowedPage(name)){ $('#pageTitle').textContent='Acesso restrito';$('#content').innerHTML='<div class="panel"><div class="panel-body"><p>Seu usuário não possui permissão para este módulo.</p></div></div>';return }
  if(name==='usuarios'){usuariosV8()}else{_v8Page(name);applyPermissionUI()}
- try{const {data:{session}}=await sb.auth.getSession();if(session?.user?.id)sessionStorage.setItem('vertice:page:'+session.user.id,name)}catch(e){console.warn('Não foi possível guardar a página atual',e)}
+ try{const uid=(await sb.auth.getSession()).data.session?.user?.id;if(uid)sessionStorage.setItem('vertice:page:'+uid,name)}catch(e){console.warn('Não foi possível guardar a página atual',e)}
 }
 
 /* Orçamentos: custos/lucro/margem aparecem somente para quem possui as permissões. */
