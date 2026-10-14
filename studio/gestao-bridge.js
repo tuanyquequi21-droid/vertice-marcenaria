@@ -13,24 +13,24 @@
   if(!materialLines||document.getElementById('studio-quote-import'))return;
   const button=document.createElement('button');
   button.type='button';button.id='studio-quote-import';button.className='btn small';
-  button.textContent='Importar chapas do Studio';
+  button.textContent='Importar materiais do Studio';
   materialLines.insertAdjacentElement('beforebegin',button);
   button.addEventListener('click',()=>{
    const draft=getDraft();if(!draft)return alert('Nenhuma estimativa do Studio disponível. Abra o Studio e clique em Enviar estimativa ao Gestão.');
    if(typeof C==='undefined'||typeof addMaterial!=='function')return alert('Formulário de materiais indisponível.');
    const catalog=C.materiais.filter(m=>m.ativo!==false);
    if(!catalog.length)return alert('Cadastre as chapas MDF em Materiais antes de importar.');
-   const rows=draft.sheets.map((s,i)=>({s,i}));
+   const rows=[...draft.sheets.map((s,i)=>({s,i,label:'Chapa MDF '+s.thickness+' mm',quantity:s.quantity,unit:'un'})),...(Array.isArray(draft.hardware)?draft.hardware:[]).map((h,i)=>({s:h,i,label:h.label,quantity:h.quantity,unit:h.unit}))];
    const root=document.createElement('div');
    const warning=document.createElement('p');warning.textContent=draft.warning;root.append(warning);
    const choices=[];
    for(const {s,i} of rows){
     const wrap=document.createElement('div');wrap.style.cssText='display:grid;grid-template-columns:1fr 90px;gap:8px;margin:12px 0';
-    const label=document.createElement('label');label.textContent='MDF '+s.thickness+' mm — '+s.areaM2.toFixed(2)+' m²';
+    const label=document.createElement('label');label.textContent=rows.find(x=>x.s===s)?.label+' ('+(rows.find(x=>x.s===s)?.unit||'un')+')';
     const select=document.createElement('select');select.className='studio-material-select';select.style.width='100%';
     const empty=document.createElement('option');empty.value='';empty.textContent='Selecionar chapa cadastrada';select.append(empty);
     for(const m of catalog){const option=document.createElement('option');option.value=m.id;option.textContent=m.nome+' ('+(m.unidade||'un')+')';select.append(option)}
-    const qty=document.createElement('input');qty.type='number';qty.min='0';qty.step='1';qty.value=s.quantity;qty.style.width='90px';qty.setAttribute('aria-label','Quantidade de chapas');
+    const qty=document.createElement('input');qty.type='number';qty.min='0';qty.step='any';qty.value=rows.find(x=>x.s===s)?.quantity??0;qty.style.width='90px';qty.setAttribute('aria-label','Quantidade de chapas');
     label.append(select);wrap.append(label,qty);root.append(wrap);choices.push({select,qty,s});
    }
    const hint=document.createElement('p');hint.textContent='Selecione o material do catálogo e ajuste as quantidades. Depois, revise os valores no orçamento e inclua ferragens, fitas, mão de obra e demais itens normalmente.';root.append(hint);
@@ -44,8 +44,8 @@
    cancel.onclick=()=>overlay.remove();
    apply.onclick=()=>{
     const items=choices.map(({select,qty,s})=>({material:C.materiais.find(m=>String(m.id)===select.value),quantity:Number(qty.value),s}));
-    if(items.some(x=>!x.material||!Number.isFinite(x.quantity)||x.quantity<0))return alert('Selecione um material para cada espessura e informe quantidades válidas.');
-    if(!confirm('Adicionar as chapas ao orçamento atual? Os itens existentes serão preservados.'))return;
+    if(items.some(x=>!Number.isFinite(x.quantity)||x.quantity<0))return alert('Informe quantidades válidas.');if(items.some(x=>x.quantity>0&&!x.material))return alert('Selecione um material cadastrado para cada item com quantidade maior que zero. Use zero para não importar um item.');
+    if(!confirm('Adicionar estes materiais ao orçamento atual? Os itens existentes serão preservados. Verifique se já foram importados para evitar duplicações.'))return;
     for(const {material,quantity} of items){if(!quantity)continue;addMaterial({material_id:material.id,quantidade:quantity,valor_unitario:Number(material.preco_custo)||0,unidade:material.unidade||'unidade'});}
     if(typeof calcQuote==='function')calcQuote();
     overlay.remove();
