@@ -316,3 +316,83 @@ document.getElementById('duplicate-module').addEventListener('click',()=>{
  presentationPlacements.push({...placementFor(i),x:placementFor(i).x+Number(presentationModules[i].width||0)+60});
  renderPresentationList();drawPresentation();presentationReport('Módulo duplicado com estrutura e peças próprias.');
 });
+
+// Interação direta: separar navegação da câmera do arrasto de módulos.
+let interactionMode='view',movingPointer=null,selectedOutline=null;
+const groundGrid=new THREE.GridHelper(12,24,0x8d7955,0x555555);
+groundGrid.position.y=-1.12;groundGrid.material.transparent=true;groundGrid.material.opacity=.28;scene.add(groundGrid);
+function syncInteractionMode(){
+ document.getElementById('mode-view').setAttribute('aria-pressed',String(interactionMode==='view'));
+ document.getElementById('mode-move').setAttribute('aria-pressed',String(interactionMode==='move'));
+ document.getElementById('interaction-hint').textContent=interactionMode==='move'
+ ?'Modo Mover: clique no móvel e arraste para posicionar na foto. Use Mais ao fundo / Mais à frente para alterar a profundidade. Para girar a câmera, volte a Visualizar.'
+ :'Modo Visualizar: arraste para girar a câmera. Clique em Mover móvel para selecionar e arrastar os módulos da apresentação.';
+ canvas.style.cursor=interactionMode==='move'?'move':'grab';
+}
+document.getElementById('mode-view').onclick=()=>{interactionMode='view';movingPointer=null;syncInteractionMode()};
+document.getElementById('mode-move').onclick=()=>{
+ if(!presentationModules.length)return presentationReport('Primeiro adicione um móvel à apresentação.');
+ if(!presentationPreview)drawPresentation();
+ interactionMode='move';syncInteractionMode();selectMoveModule(Number(document.getElementById('placement-module').value)||0);
+};
+function selectMoveModule(index){
+ if(!presentationModules[index])return;
+ const select=document.getElementById('placement-module');select.value=String(index);loadPlacement();
+ if(selectedOutline){presentationGroup.remove(selectedOutline);selectedOutline.geometry.dispose();selectedOutline.material.dispose();selectedOutline=null}
+ const module= presentationGroup.children[index];
+ if(module){selectedOutline=new THREE.BoxHelper(module,0xffd15c);presentationGroup.add(selectedOutline)}
+ render();
+}
+const oldDrawPresentation=drawPresentation;
+drawPresentation=function(){
+ if(selectedOutline){presentationGroup.remove(selectedOutline);selectedOutline.geometry.dispose();selectedOutline.material.dispose();selectedOutline=null}
+ oldDrawPresentation();
+ groundGrid.position.y=-modelHeight/2-.025;
+ if(interactionMode==='move'&&presentationModules.length)selectMoveModule(Number(document.getElementById('placement-module').value)||0);
+};
+document.getElementById('placement-module').addEventListener('change',()=>{if(presentationPreview)selectMoveModule(Number(document.getElementById('placement-module').value))});
+function moveDepth(delta){
+ const i=Number(document.getElementById('placement-module').value);
+ if(!presentationModules[i])return presentationReport('Selecione um módulo.');
+ const p={...placementFor(i)};p.z=Math.round((p.z+delta)/10)*10;presentationPlacements[i]=p;
+ drawPresentation();loadPlacement();presentationReport('Profundidade do módulo: '+p.z+' mm.');
+}
+document.getElementById('move-depth-back').onclick=()=>moveDepth(-100);
+document.getElementById('move-depth-front').onclick=()=>moveDepth(100);
+const raycaster=new THREE.Raycaster(),mouseNdc=new THREE.Vector2();
+canvas.addEventListener('pointerdown',e=>{
+ if(interactionMode!=='move'||!presentationPreview||e.button!==0)return;
+ e.stopImmediatePropagation();e.preventDefault();
+ const rect=canvas.getBoundingClientRect();
+ mouseNdc.set((e.clientX-rect.left)/rect.width*2-1,-((e.clientY-rect.top)/rect.height*2-1));
+ raycaster.setFromCamera(mouseNdc,camera);
+ const hit=raycaster.intersectObjects(presentationGroup.children.filter((child,i)=>i<presentationModules.length),true)[0];
+ if(!hit){movingPointer=null;return}
+ let root=hit.object;while(root.parent&&root.parent!==presentationGroup)root=root.parent;
+ const index=presentationGroup.children.indexOf(root);if(index<0||index>=presentationModules.length)return;
+ selectMoveModule(index);
+ movingPointer={id:e.pointerId,index,x:e.clientX,y:e.clientY};
+ canvas.setPointerCapture(e.pointerId);
+},true);
+canvas.addEventListener('pointermove',e=>{
+ if(interactionMode!=='move'||!presentationPreview)return;
+ e.stopImmediatePropagation();if(!movingPointer||movingPointer.id!==e.pointerId)return;
+ const dx=e.clientX-movingPointer.x,dy=e.clientY-movingPointer.y;
+ movingPointer.x=e.clientX;movingPointer.y=e.clientY;
+ camera.updateMatrixWorld(true);
+ const right=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+ const up=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
+ const scale=2*viewDistance*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)/(host.clientHeight||450)*1000;
+ const p={...placementFor(movingPointer.index)};
+ p.x=Math.round((p.x+(dx*right.x-dy*up.x)*scale)/10)*10;
+ p.y=Math.round((p.y+(-dx*right.y+dy*up.y)*scale)/10)*10;
+ p.z=Math.round((p.z+(dx*right.z-dy*up.z)*scale)/10)*10;
+ presentationPlacements[movingPointer.index]=p;
+ const g=presentationGroup.children[movingPointer.index];
+ if(g){g.position.set(g.position.x+(dx*right.x-dy*up.x)*scale/1000,g.position.y+(-dx*right.y+dy*up.y)*scale/1000,g.position.z+(dx*right.z-dy*up.z)*scale/1000)}
+ if(selectedOutline&&g)selectedOutline.update();loadPlacement();render();
+},true);
+function stopMoving(e){if(!movingPointer||e.pointerId!==movingPointer.id)return;e.stopImmediatePropagation();movingPointer=null;drawPresentation();presentationReport('Módulo posicionado. Use os botões de profundidade para ajustar a distância.')}
+canvas.addEventListener('pointerup',stopMoving,true);
+canvas.addEventListener('pointercancel',stopMoving,true);
+syncInteractionMode();
