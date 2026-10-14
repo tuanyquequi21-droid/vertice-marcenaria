@@ -21,7 +21,7 @@
 <div id="app" class="app hidden">
 <aside id="sidebar" class="sidebar">
   <div class="brand"><div class="brand-mark small">V</div><div class="brand-text"><b>VÉRTICE</b><span>GESTÃO</span></div></div>
-  <button id="collapseBtn" class="collapse" title="Abrir/fechar menu">☰</button>
+  <button id="collapseBtn" class="collapse" title="Expandir ou recolher menu" aria-label="Expandir ou recolher menu" aria-expanded="true">☰</button>
   <nav>
     <button data-page="dashboard"><span>▦</span><em>Dashboard</em></button>
     <button data-page="leads"><span>◎</span><em>Leads / CRM</em></button>
@@ -41,7 +41,7 @@
   <button id="logoutBtn" class="logout"><span>↪</span><em>Sair</em></button>
 </aside>
 <main class="main">
-  <header class="topbar"><div><h2 id="pageTitle">Dashboard</h2><small id="today"></small></div><div class="top-actions"><button class="btn gold" onclick="openLead()">+ Novo lead</button><button class="btn dark" onclick="openQuote()">+ Orçamento</button></div></header>
+  <header class="topbar"><div><h2 id="pageTitle">Dashboard</h2><small id="today"></small></div><div class="top-actions"><button type="button" class="btn dark" id="studioMenuToggle" aria-label="Expandir ou recolher menu" title="Expandir ou recolher menu">☰ Menu</button><a class="btn gold" href="studio/" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px">◈ Studio 3D</a><button class="btn gold" onclick="openLead()">+ Novo lead</button><button class="btn dark" onclick="openQuote()">+ Orçamento</button></div></header>
   <section id="content" class="content"></section>
 </main>
 </div>
@@ -52,5 +52,6 @@
 <script src="assets/js/app-v6.js"></script>
 <script src="assets/js/app-v7.js"></script>
 <script src="studio/gestao-bridge.js" defer></script>
+<script src="studio/gestao-navigation.js" defer></script>
 </body>
 </html>
