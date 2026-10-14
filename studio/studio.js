@@ -22,10 +22,10 @@ function draw(p){fronts.length=0;doorMeta=[];doorsOpened=false;while(group.child
  if(doors&&drawers)addBox(0,-H/2+DH,0,W-2*T,T,D-.006);
  for(let i=0;i<doors;i++){
   const type=p.layout.doorType,overlap=Math.min(.03,W*.025),leafWidth=type==='sliding'?W/doors+overlap:W/doors-.006;
-  const flap=type==='flap-down';
-  const panelW=flap?W-.006:leafWidth,panelH=flap?PH/doors-.004:PH-.004;
-  const x=flap?0:-W/2+(i+.5)*W/doors;
-  const y=flap?DH/2-PH/2+(i+.5)*PH/doors:DH/2;
+  const flap=type==='flap-down',stacked=flap&&p.layout.flapLayout!=='horizontal';
+  const panelW=stacked?W-.006:leafWidth,panelH=stacked?PH/doors-.004:PH-.004;
+  const x=stacked?0:-W/2+(i+.5)*W/doors;
+  const y=stacked?DH/2-PH/2+(i+.5)*PH/doors:DH/2;
   const z=D/2+.012+(type==='sliding'?(i%2)*(.012+T):0);
   addBox(x,y,z,panelW,panelH,T);
   const mesh=group.children[group.children.length-1];fronts.push(mesh);
@@ -54,6 +54,7 @@ document.getElementById('previewDoors').addEventListener('click',()=>{
 });
 document.getElementById('doorType').addEventListener('change',e=>{
  document.getElementById('doorSwingField').hidden=e.target.value!=='hinged';
+ document.getElementById('flapLayoutField').hidden=e.target.value!=='flap-down';
 });
 function cameraFitDistance(){
  const aspect=Math.max(.35,(host.clientWidth||600)/(host.clientHeight||450));
@@ -80,13 +81,14 @@ new ResizeObserver(render).observe(host);
 document.getElementById('form').addEventListener('submit',e=>{e.preventDefault();try{const data=Object.fromEntries(new FormData(e.target));const p=calculateCabinet(data);project={schemaVersion:1,kind:'cabinet',params:data};draw(p);document.getElementById('error').textContent='';document.getElementById('totals').textContent='Área: '+p.areaM2.toFixed(2)+' m² | Fita: '+p.edgeM.toFixed(2)+' m | Materiais estimados: '+p.estimatedMaterialCost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});document.getElementById('hardware').replaceChildren(...p.hardware.map(item=>{const tr=document.createElement('tr');for(const value of [item.label,item.quantity,item.unit]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}));document.getElementById('parts').replaceChildren(...p.parts.map(part=>{const tr=document.createElement('tr');for(const value of [part.name,part.qty,part.width.toFixed(1)+' × '+part.height.toFixed(1)+' × '+part.thickness]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}))}catch(err){document.getElementById('error').textContent=err.message}});
 document.getElementById('form').requestSubmit();
 document.getElementById('doorSwingField').hidden=false;
+document.getElementById('flapLayoutField').hidden=true;
 
 // Persistência local isolada: não acessa dados nem tabelas do Supabase.
 const storageKey='vertice-studio3d-project-v1';
 const status=document.getElementById('status');
 function report(message){status.textContent=message}
 function download(name,contents,mime){const blob=new Blob([contents],{type:mime});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-function applyProject(data){if(!data||data.schemaVersion!==1||data.kind!=='cabinet'||!data.params||typeof data.params!=='object'||Array.isArray(data.params))throw new Error('Arquivo de projeto inválido ou incompatível');const validated=calculateCabinet(data.params);const form=document.getElementById('form');for(const field of form.elements){if(field.name&&Object.hasOwn(data.params,field.name)){field.value=data.params[field.name]}}document.getElementById('doorSwingField').hidden=form.elements.doorType.value!=='hinged';form.requestSubmit();return validated}
+function applyProject(data){if(!data||data.schemaVersion!==1||data.kind!=='cabinet'||!data.params||typeof data.params!=='object'||Array.isArray(data.params))throw new Error('Arquivo de projeto inválido ou incompatível');const validated=calculateCabinet(data.params);const form=document.getElementById('form');for(const field of form.elements){if(field.name&&Object.hasOwn(data.params,field.name)){field.value=data.params[field.name]}}document.getElementById('doorSwingField').hidden=form.elements.doorType.value!=='hinged';document.getElementById('flapLayoutField').hidden=form.elements.doorType.value!=='flap-down';form.requestSubmit();return validated}
 document.getElementById('save').addEventListener('click',()=>{if(!project)return report('Atualize o projeto antes de salvar.');try{localStorage.setItem(storageKey,JSON.stringify(project));report('Projeto salvo neste navegador.')}catch(err){report('Não foi possível salvar: '+err.message)}});
 document.getElementById('load').addEventListener('click',()=>{try{const saved=localStorage.getItem(storageKey);if(!saved)throw new Error('Nenhum projeto salvo neste navegador');applyProject(JSON.parse(saved));report('Projeto recuperado.')}catch(err){report(err.message)}});
 document.getElementById('export').addEventListener('click',()=>{if(!project)return report('Atualize o projeto antes de exportar.');download('vertice-projeto-3d.json',JSON.stringify(project,null,2),'application/json');report('Projeto exportado.')} );
