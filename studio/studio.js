@@ -182,3 +182,39 @@ transferButton?.addEventListener('click',()=>{
   window.location.assign('../index.html#studio-import');
  }catch(err){report(err.message)}
 });
+
+// Apresentação pública somente leitura. O link codifica apenas medidas/configuração dos módulos.
+// Não inclui foto, dados do cliente, custos nem credenciais.
+const presentationModules=[];
+const presentationStatus=document.getElementById('presentation-status');
+const presentationCount=document.getElementById('presentation-count');
+function presentationReport(message){presentationStatus.textContent=message}
+document.getElementById('add-presentation-module').addEventListener('click',()=>{
+ try{const params=Object.fromEntries(new FormData(document.getElementById('form')));calculateCabinet(params);if(presentationModules.length>=15)throw Error('Limite de 15 módulos por apresentação.');presentationModules.push(params);presentationCount.textContent=presentationModules.length+' módulo(s) na apresentação.';presentationReport('Móvel adicionado. Você pode mudar as medidas e adicionar outro.')}catch(e){presentationReport(e.message)}
+});
+document.getElementById('clear-presentation').addEventListener('click',()=>{presentationModules.length=0;presentationCount.textContent='Nenhum módulo adicionado.';document.getElementById('presentation-link').value='';presentationReport('Módulos removidos da apresentação.')});
+document.getElementById('create-presentation-link').addEventListener('click',()=>{
+ try{if(!presentationModules.length)throw Error('Adicione pelo menos um móvel à apresentação.');
+ const payload={version:1,title:document.getElementById('presentation-title').value.trim().slice(0,100),modules:presentationModules};
+ const bytes=new TextEncoder().encode(JSON.stringify(payload));let binary='';for(const b of bytes)binary+=String.fromCharCode(b);
+ const token=btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+ if(token.length>15000)throw Error('Apresentação muito grande para link. Reduza o número de módulos.');
+ const url=new URL('./apresentacao.html',location.href);url.hash=token;
+ document.getElementById('presentation-link').value=url.href;
+ presentationReport('Link criado. O cliente poderá girar, aproximar e explorar os móveis sem editar. A foto não está incluída.');
+ }catch(e){presentationReport(e.message)}
+});
+document.getElementById('copy-presentation-link').addEventListener('click',async()=>{
+ const value=document.getElementById('presentation-link').value;
+ if(!value)return presentationReport('Gere um link primeiro.');
+ try{await navigator.clipboard.writeText(value);presentationReport('Link copiado.')}catch{document.getElementById('presentation-link').select();presentationReport('Selecione e copie o link exibido.')}
+});
+let roomPhotoUrl=null;
+document.getElementById('room-photo').addEventListener('change',e=>{
+ const file=e.target.files?.[0];if(roomPhotoUrl){URL.revokeObjectURL(roomPhotoUrl);roomPhotoUrl=null}
+ const img=document.getElementById('room-preview');img.hidden=true;
+ if(!file)return;
+ if(!file.type.startsWith('image/')||file.size>12*1024*1024)return presentationReport('Escolha uma imagem de até 12 MB.');
+ roomPhotoUrl=URL.createObjectURL(file);img.src=roomPhotoUrl;img.hidden=false;
+ presentationReport('Foto carregada como referência local. Posicionamento dos móveis na foto e renderização realista ainda serão implementados.');
+});
