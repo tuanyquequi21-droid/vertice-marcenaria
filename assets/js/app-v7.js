@@ -187,7 +187,7 @@ sessionUI=async function(s){
  let first=['dashboard','leads','clientes','orcamentos','agenda','producao','materiais','financeiro','relatorios'].find(v8AllowedPage)||'dashboard';let savedPage='';try{savedPage=sessionStorage.getItem('vertice:page:'+s.user.id)||''}catch(e){console.warn('Navegação sem armazenamento de sessão',e)}page(savedPage&&v8AllowedPage(savedPage)&&['dashboard','leads','clientes','pipeline','agenda','orcamentos','producao','materiais','custos','financeiro','relatorios','comunicacoes','posvenda','usuarios'].includes(savedPage)?savedPage:first);
 }
 const _v8Page=page;
-page=function(name){
+page=async function(name){
  if(!v8AllowedPage(name)){ $('#pageTitle').textContent='Acesso restrito';$('#content').innerHTML='<div class="panel"><div class="panel-body"><p>Seu usuário não possui permissão para este módulo.</p></div></div>';return }
  if(name==='usuarios'){usuariosV8()}else{_v8Page(name);applyPermissionUI()}
  try{const uid=(await sb.auth.getSession()).data.session?.user?.id;if(uid)sessionStorage.setItem('vertice:page:'+uid,name)}catch(e){console.warn('Não foi possível guardar a página atual',e)}
