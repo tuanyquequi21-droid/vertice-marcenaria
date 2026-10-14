@@ -2,6 +2,7 @@
 (function(){
  'use strict';
  const KEY='vertice:studio:quote-transfer:v1';
+ let noticeDismissed=false;
  function getDraft(){
   try{const d=JSON.parse(localStorage.getItem(KEY)||'null');
    if(!d||d.schemaVersion!==1||d.source!=='vertice-studio'||!Array.isArray(d.sheets))return null;
@@ -13,14 +14,14 @@
   if(!title)return;
   let banner=document.getElementById('studio-pending-import');
   if(!draft){if(banner)banner.remove();return}
-  if(banner)return;
+  if(banner||noticeDismissed)return;
   banner=document.createElement('div');banner.id='studio-pending-import';
   banner.style.cssText='background:#fff8e7;border:1px solid #c6a65d;color:#40341e;padding:12px 14px;margin:12px 0;border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap';
   const message=document.createElement('span');message.textContent='Materiais do Studio aguardando importação. Abra ou crie um orçamento e clique em “Importar materiais do Studio”.';
   const go=document.createElement('button');go.type='button';go.className='btn small';go.textContent='Ir para Orçamentos';
   go.onclick=()=>{if(typeof page==='function')page('orcamentos');else alert('Abra a seção Orçamentos pelo menu.');};
   const dismiss=document.createElement('button');dismiss.type='button';dismiss.className='btn small';dismiss.textContent='Ocultar aviso';
-  dismiss.onclick=()=>banner.remove();
+  dismiss.onclick=()=>{noticeDismissed=true;banner.remove()};
   banner.append(message,go,dismiss);
   title.insertAdjacentElement('afterend',banner);
  }
