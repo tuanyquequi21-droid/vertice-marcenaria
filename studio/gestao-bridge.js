@@ -19,7 +19,7 @@
    const draft=getDraft();if(!draft)return alert('Nenhuma estimativa do Studio disponível. Abra o Studio e clique em Enviar estimativa ao Gestão.');
    if(typeof C==='undefined'||typeof addMaterial!=='function')return alert('Formulário de materiais indisponível.');
    const catalog=C.materiais.filter(m=>m.ativo!==false);
-   if(!catalog.length)return alert('Cadastre as chapas MDF em Materiais antes de importar.');
+   if(!catalog.length)return alert('Cadastre os materiais no catálogo do Gestão antes de importar.');
    const rows=[...draft.sheets.map((s,i)=>({s,i,label:'Chapa MDF '+s.thickness+' mm',quantity:s.quantity,unit:'un'})),...(Array.isArray(draft.hardware)?draft.hardware:[]).map((h,i)=>({s:h,i,label:h.label,quantity:h.quantity,unit:h.unit}))];
    const root=document.createElement('div');
    const warning=document.createElement('p');warning.textContent=draft.warning;root.append(warning);
@@ -28,12 +28,12 @@
     const wrap=document.createElement('div');wrap.style.cssText='display:grid;grid-template-columns:1fr 90px;gap:8px;margin:12px 0';
     const label=document.createElement('label');label.textContent=rows.find(x=>x.s===s)?.label+' ('+(rows.find(x=>x.s===s)?.unit||'un')+')';
     const select=document.createElement('select');select.className='studio-material-select';select.style.width='100%';
-    const empty=document.createElement('option');empty.value='';empty.textContent='Selecionar chapa cadastrada';select.append(empty);
+    const empty=document.createElement('option');empty.value='';empty.textContent='Selecionar material cadastrado';select.append(empty);
     for(const m of catalog){const option=document.createElement('option');option.value=m.id;option.textContent=m.nome+' ('+(m.unidade||'un')+')';select.append(option)}
-    const qty=document.createElement('input');qty.type='number';qty.min='0';qty.step='any';qty.value=rows.find(x=>x.s===s)?.quantity??0;qty.style.width='90px';qty.setAttribute('aria-label','Quantidade de chapas');
+    const qty=document.createElement('input');qty.type='number';qty.min='0';qty.step='any';qty.value=rows.find(x=>x.s===s)?.quantity??0;qty.style.width='90px';qty.setAttribute('aria-label','Quantidade do material');
     label.append(select);wrap.append(label,qty);root.append(wrap);choices.push({select,qty,s});
    }
-   const hint=document.createElement('p');hint.textContent='Selecione o material do catálogo e ajuste as quantidades. Depois, revise os valores no orçamento e inclua ferragens, fitas, mão de obra e demais itens normalmente.';root.append(hint);
+   const hint=document.createElement('p');hint.textContent='Selecione o material do catálogo e ajuste as quantidades. Depois, revise os valores no orçamento e inclua outros materiais, mão de obra e custos normalmente.';root.append(hint);
    const actions=document.createElement('div');actions.className='toolbar';
    const cancel=document.createElement('button');cancel.className='btn';cancel.textContent='Cancelar';
    const apply=document.createElement('button');apply.className='btn gold';apply.textContent='Adicionar materiais';
