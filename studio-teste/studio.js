@@ -1,5 +1,28 @@
 import {calculateCabinet} from './engine.mjs';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
+import {RoundedBoxGeometry} from 'https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/geometries/RoundedBoxGeometry.js';
+// Bordas discretamente arredondadas simulam a quina real do MDF com fita de borda.
+const cabinetGeometryCache=new Map();
+function cabinetGeometry(w,h,d){
+ const key=[w,h,d].map(v=>v.toFixed(5)).join('|');
+ if(!cabinetGeometryCache.has(key)){
+  const radius=Math.min(.0015,Math.min(w,h,d)*.18);
+  cabinetGeometryCache.set(key,new RoundedBoxGeometry(w,h,d,2,radius));
+ }
+ return cabinetGeometryCache.get(key);
+}
+// Textura microgranulada procedural para quebrar a aparência artificial de superfícies lisas.
+const grainCanvas=document.createElement('canvas');grainCanvas.width=128;grainCanvas.height=128;
+const grainContext=grainCanvas.getContext('2d'),grainPixels=grainContext.createImageData(128,128);
+for(let y=0;y<128;y++)for(let x=0;x<128;x++){
+ const i=(y*128+x)*4;
+ const v=192+Math.floor(14*Math.sin(y*.83+x*.12)+12*Math.sin(y*.17)+8*Math.sin(x*1.7+y*.21));
+ grainPixels.data[i]=grainPixels.data[i+1]=grainPixels.data[i+2]=Math.max(0,Math.min(255,v));
+ grainPixels.data[i+3]=255;
+}
+grainContext.putImageData(grainPixels,0,0);
+const microBump=new THREE.CanvasTexture(grainCanvas);microBump.wrapS=microBump.wrapT=THREE.RepeatWrapping;microBump.repeat.set(3,3);
+function finishSurface(mat){mat.bumpMap=microBump;mat.bumpScale=.00018;mat.roughness=.62;mat.metalness=0;mat.needsUpdate=true}
 const scene=new THREE.Scene();scene.background=new THREE.Color('#34383d');
 const camera=new THREE.PerspectiveCamera(40,1,.1,30);camera.position.set(2.8,2.1,3.8);camera.lookAt(0,0,0);
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2.5));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -14,12 +37,13 @@ const material=new THREE.MeshStandardMaterial({color:0xbda889,roughness:.58,meta
 const bodyMaterial=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.75});
 const doorMaterial=new THREE.MeshStandardMaterial({color:'#bda889',roughness:.75});
 const drawerMaterial=new THREE.MeshStandardMaterial({color:'#bda889',roughness:.75});
+for(const mat of [material,bodyMaterial,doorMaterial,drawerMaterial])finishSurface(mat);
 let componentColorsActive=false;
 function componentColors(){return {body:'#'+bodyMaterial.color.getHexString(),doors:'#'+doorMaterial.color.getHexString(),drawers:'#'+drawerMaterial.color.getHexString()}}
 function applyComponentColors(colors){for(const [key,mat] of [['body',bodyMaterial],['doors',doorMaterial],['drawers',drawerMaterial]]){const value=colors?.[key];if(/^#[0-9a-fA-F]{6}$/.test(value||'')){mat.color.set(value);document.getElementById('cabinet-'+(key==='doors'?'door':key==='drawers'?'drawer':'body')+'-color').value=value}}componentColorsActive=true;for(const mesh of group.children){if(mesh.userData.partType)mesh.material=mesh.userData.partType==='door'?doorMaterial:mesh.userData.partType==='drawer'?drawerMaterial:bodyMaterial}for(const g of presentationGroup.children){g.traverse(o=>{if(o.isMesh&&o.userData.partType)o.material=o.userData.partType==='door'?doorMaterial:o.userData.partType==='drawer'?drawerMaterial:bodyMaterial})}render()}
 
-function addBox(x,y,z,w,h,d){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.partType='body';group.add(mesh)}
-function draw(p){presentationPreview=false;presentationGroup.visible=false;group.visible=true;fronts.length=0;doorMeta=[];doorsOpened=false;while(group.children.length){const mesh=group.children[0];group.remove(mesh);mesh.geometry.dispose()}
+function addBox(x,y,z,w,h,d){const mesh=new THREE.Mesh(cabinetGeometry(w,h,d),material);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.partType='body';group.add(mesh)}
+function draw(p){presentationPreview=false;presentationGroup.visible=false;group.visible=true;fronts.length=0;doorMeta=[];doorsOpened=false;while(group.children.length){const mesh=group.children[0];group.remove(mesh);mesh.geometry===cabinetGeometryCache.get([mesh.geometry.parameters?.width,mesh.geometry.parameters?.height,mesh.geometry.parameters?.depth].map(v=>Number(v).toFixed(5)).join('|'))?null:mesh.geometry.dispose()}
  const {width:w,height:h,depth:d}=p.dimensions;const t=Number(document.querySelector('[name=thickness]').value),s=Number(document.querySelector('[name=shelves]').value),doors=Number(document.querySelector('[name=doors]').value);
  const drawers=Number(document.querySelector('[name=drawers]').value||0),dividers=Number(document.querySelector('[name=dividers]').value||0);const W=w/1000,H=h/1000,D=d/1000,T=t/1000;addBox(-W/2+T/2,0,0,T,H,D);addBox(W/2-T/2,0,0,T,H,D);
  addBox(0,-H/2+T/2,0,W-2*T,T,D);addBox(0,H/2-T/2,0,W-2*T,T,D);
@@ -225,7 +249,7 @@ document.getElementById('apply-placement').addEventListener('click',()=>{const i
 document.getElementById('view-placement').addEventListener('click',()=>{viewAzimuth=.48;viewElevation=.22;updateCamera()});
 function presentationBox(parent,x,y,z,w,h,d){
  if(w<=0||h<=0||d<=0)return;
- const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),componentColorsActive?bodyMaterial:material);mesh.userData.partType='body';mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);
+ const mesh=new THREE.Mesh(cabinetGeometry(w,h,d),componentColorsActive?bodyMaterial:material);mesh.userData.partType='body';mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);
 }
 function drawPresentation(){
  while(presentationGroup.children.length){const child=presentationGroup.children[0];presentationGroup.remove(child);child.traverse(o=>{if(o.geometry)o.geometry.dispose()})}
