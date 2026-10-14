@@ -6,11 +6,11 @@ const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(
 const host=document.getElementById('scene');host.appendChild(renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xffffff,0x777777,2));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(2,4,5);scene.add(light);
 const group=new THREE.Group();scene.add(group);
-let project=null,rotation={x:0,y:0},drag=null,showFront=true;
+let project=null,rotation={x:0,y:0},drag=null,showFront=true,doorsOpened=false,doorMeta=[];
 const fronts=[];
 const material=new THREE.MeshStandardMaterial({color:0xbda889,roughness:.75});
 function addBox(x,y,z,w,h,d){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);group.add(mesh)}
-function draw(p){fronts.length=0;while(group.children.length){const mesh=group.children[0];group.remove(mesh);mesh.geometry.dispose()}
+function draw(p){fronts.length=0;doorMeta=[];doorsOpened=false;while(group.children.length){const mesh=group.children[0];group.remove(mesh);mesh.geometry.dispose()}
  const {width:w,height:h,depth:d}=p.dimensions;const t=Number(document.querySelector('[name=thickness]').value),s=Number(document.querySelector('[name=shelves]').value),doors=Number(document.querySelector('[name=doors]').value);
  const drawers=Number(document.querySelector('[name=drawers]').value||0),dividers=Number(document.querySelector('[name=dividers]').value||0);const W=w/1000,H=h/1000,D=d/1000,T=t/1000;addBox(-W/2+T/2,0,0,T,H,D);addBox(W/2-T/2,0,0,T,H,D);
  addBox(0,-H/2+T/2,0,W-2*T,T,D);addBox(0,H/2-T/2,0,W-2*T,T,D);
@@ -19,13 +19,37 @@ function draw(p){fronts.length=0;while(group.children.length){const mesh=group.c
  addBox(0,0,-D/2+.003,W,H,.006);
  const DH=p.layout.drawerHeight/1000,PH=p.layout.doorHeight/1000;
  if(doors&&drawers)addBox(0,-H/2+DH,0,W-2*T,T,D-.006);
- for(let i=0;i<doors;i++){addBox(-W/2+(i+.5)*W/doors,DH/2,D/2+.012,W/doors-.006,PH-.004,T);fronts.push(group.children[group.children.length-1])}
+ for(let i=0;i<doors;i++){
+  const type=p.layout.doorType,overlap=Math.min(.03,W*.025),leafWidth=type==='sliding'?W/doors+overlap:W/doors-.006;
+  const x=-W/2+(i+.5)*W/doors,z=D/2+.012+(type==='sliding'?(i%2)*(.012+T):0);
+  addBox(x,DH/2,z,leafWidth,PH-.004,T);
+  const mesh=group.children[group.children.length-1];fronts.push(mesh);
+  doorMeta.push({mesh,type,index:i,closed:{x,y:DH/2,z},width:leafWidth,height:PH-.004,swing:p.layout.doorSwing});
+ }
  const bayW=p.layout.bayWidth/1000,bayX=-W/2+T+(p.layout.drawerBay-.5)*bayW+(p.layout.drawerBay-1)*T;
  for(let i=0;i<drawers;i++){addBox(bayX,-H/2+(i+.5)*DH/drawers,D/2+.012,bayW-.006,DH/drawers-.004,T);fronts.push(group.children[group.children.length-1])}
  for(let i=0;i<drawers;i++){const y=-H/2+(i+.5)*DH/drawers,boxH=Math.min(.16,DH/drawers-.05),boxW=(p.layout.bayWidth-2*t-26)/1000,boxD=(d-60)/1000;addBox(bayX-boxW/2,y,0,T,boxH,boxD);addBox(bayX+boxW/2,y,0,T,boxH,boxD);addBox(bayX,y,-boxD/2,boxW,boxH,T);addBox(bayX,y,boxD/2,boxW,boxH,T);addBox(bayX,y-boxH/2,0,boxW,.006,boxD)}
  for(const front of fronts)front.visible=showFront;
- const max=Math.max(W,H,D);camera.position.set(max*1.3,max*.95,max*1.7);camera.lookAt(0,0,0);group.rotation.set(rotation.x,rotation.y,0);render();
+ const max=Math.max(W,H,D);camera.position.set(max*1.3,max*.95,max*1.7);camera.lookAt(0,0,0);group.rotation.set(rotation.x,rotation.y,0);document.getElementById('previewDoors').textContent='Simular abertura das portas';render();
 }
+function updateDoorPreview(){
+ for(const item of doorMeta){
+  const {mesh,type,index,closed,width,height,swing}=item;
+  mesh.rotation.set(0,0,0);mesh.position.set(closed.x,closed.y,closed.z);
+  if(!doorsOpened)continue;
+  if(type==='sliding'){mesh.position.x=closed.x+(index%2===0?1:-1)*Math.min(width*.45,.24);}
+  else if(type==='flap-down'){mesh.rotation.x=-Math.PI/3;mesh.position.y=closed.y-height*.22;mesh.position.z=closed.z+height*.28;}
+  else{mesh.rotation.y=(swing==='left'?-1:1)*Math.PI/3;mesh.position.x=closed.x+(swing==='left'?-1:1)*width*.22;mesh.position.z=closed.z+width*.22;}
+ }
+ render();
+}
+document.getElementById('previewDoors').addEventListener('click',()=>{
+ doorsOpened=!doorsOpened;updateDoorPreview();
+ document.getElementById('previewDoors').textContent=doorsOpened?'Fechar portas na prévia':'Simular abertura das portas';
+});
+document.getElementById('doorType').addEventListener('change',e=>{
+ document.getElementById('doorSwingField').hidden=e.target.value!=='hinged';
+});
 function render(){const width=host.clientWidth||500,height=host.clientHeight||450;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();renderer.render(scene,camera)}
 new ResizeObserver(render).observe(host);
 document.getElementById('form').addEventListener('submit',e=>{e.preventDefault();try{const data=Object.fromEntries(new FormData(e.target));const p=calculateCabinet(data);project={schemaVersion:1,kind:'cabinet',params:data};draw(p);document.getElementById('error').textContent='';document.getElementById('totals').textContent='Área: '+p.areaM2.toFixed(2)+' m² | Fita: '+p.edgeM.toFixed(2)+' m | Materiais estimados: '+p.estimatedMaterialCost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});document.getElementById('parts').replaceChildren(...p.parts.map(part=>{const tr=document.createElement('tr');for(const value of [part.name,part.qty,part.width.toFixed(1)+' × '+part.height.toFixed(1)+' × '+part.thickness]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}))}catch(err){document.getElementById('error').textContent=err.message}});
