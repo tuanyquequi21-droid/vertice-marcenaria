@@ -18,3 +18,22 @@ button,input,select,textarea{font:inherit}.app{min-height:100vh}.sidebar{positio
 .segmented{display:flex;gap:5px;flex-wrap:wrap}.archived-row{opacity:.66}.archived-row:hover{opacity:.9}
 .btn.danger{border-color:#b84c4c}
 @media(max-width:700px){.v72-list-head{align-items:stretch}.v72-list-head .searchbar{width:100%}.segmented{width:100%}.segmented .btn{flex:1}}
+
+/* Correção mobile: menu rolável e conteúdo sem sobreposição (2026-10-13) */
+.sidebar{height:100vh;height:100dvh;min-height:0;overflow:visible}
+.sidebar nav{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.sidebar .brand,.sidebar .collapse,.sidebar .logout{flex-shrink:0}
+.sidebar .logout{margin-top:0}
+@media(max-width:700px){
+ .sidebar{width:64px;max-height:100dvh;padding:14px 6px 10px;z-index:20}
+ .sidebar nav{padding-top:12px;gap:5px}
+ .sidebar nav button{width:100%;min-height:46px;flex:0 0 auto;justify-content:center;padding:10px 6px;position:relative;box-shadow:none}
+ .sidebar nav button.active{box-shadow:inset 3px 0 var(--gold)}
+ .sidebar .collapse{right:5px;top:57px;width:26px;height:26px;z-index:1}
+ .sidebar .brand{padding:0 0 35px;justify-content:center}
+ .sidebar .logout{min-height:46px;justify-content:center;padding:10px 6px}
+ .main,.sidebar.collapsed~.main{margin-left:64px;min-width:0}
+ .topbar{height:auto;min-height:68px;gap:10px;flex-wrap:wrap;padding:12px;position:relative;z-index:1}
+ .top-actions{max-width:100%}
+ .content{min-width:0;overflow-wrap:anywhere}
+}
