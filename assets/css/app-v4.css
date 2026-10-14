@@ -37,3 +37,13 @@ button,input,select,textarea{font:inherit}.app{min-height:100vh}.sidebar{positio
  .top-actions{max-width:100%}
  .content{min-width:0;overflow-wrap:anywhere}
 }
+
+/* Ações compactas da listagem de orçamentos */
+.quote-action-group{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;min-width:max-content}
+.quote-action-menu{position:relative;display:inline-block}
+.quote-action-menu>summary{display:inline-flex;align-items:center;cursor:pointer;list-style:none;white-space:nowrap}
+.quote-action-menu>summary::-webkit-details-marker{display:none}
+.quote-action-dropdown{position:absolute;right:0;top:calc(100% + 5px);z-index:30;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;min-width:210px;padding:10px;background:#fff;border:1px solid #dedbd5;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.16)}
+.quote-action-dropdown .btn{white-space:nowrap;text-align:center}
+.quote-action-menu:not([open]) .quote-action-dropdown{display:none}
+@media(max-width:650px){.quote-action-dropdown{right:0;grid-template-columns:1fr;min-width:175px}}
