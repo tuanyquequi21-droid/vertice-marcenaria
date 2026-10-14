@@ -262,8 +262,31 @@ document.getElementById('preview-presentation').addEventListener('click',()=>{
  try{if(!presentationModules.length)throw Error('Adicione um móvel primeiro.');drawPresentation();presentationReport('Exibindo todos os módulos na mesma cena.')}catch(e){presentationReport(e.message)}
 });
 document.getElementById('preview-current').addEventListener('click',()=>{presentationPreview=false;presentationGroup.visible=false;group.visible=true;const params=Object.fromEntries(new FormData(document.getElementById('form')));draw(calculateCabinet(params));presentationReport('Exibindo o móvel em edição.')});
+function syncCurrentCabinetForSharing(){
+ const params=Object.fromEntries(new FormData(document.getElementById('form')));
+ calculateCabinet(params);
+ const label={name:(document.getElementById('module-name').value.trim()||'Móvel em edição').slice(0,100),type:document.getElementById('module-type').value};
+ if(selectedPresentationIndex>=0&&presentationModules[selectedPresentationIndex]){
+  presentationModules[selectedPresentationIndex]={...params};
+  presentationLabels[selectedPresentationIndex]=label;
+ }else if(!presentationModules.length){
+  presentationModules.push({...params});
+  presentationLabels.push(label);
+  presentationPlacements.push({x:0,y:0,z:0,rotation:0});
+ }else{
+  // Uma edição isolada não deve desaparecer da apresentação.
+  const existing=presentationModules.findIndex(m=>JSON.stringify(m)===JSON.stringify(params));
+  if(existing<0){
+   if(presentationModules.length>=15)throw Error('Limite de 15 módulos. Remova um módulo para incluir o móvel em edição.');
+   presentationModules.push({...params});
+   presentationLabels.push(label);
+   presentationPlacements.push({x:0,y:0,z:0,rotation:0});
+  }
+ }
+ renderPresentationList();
+}
 document.getElementById('create-presentation-link').addEventListener('click',()=>{
- try{if(!presentationModules.length)throw Error('Adicione pelo menos um móvel à apresentação.');
+ try{syncCurrentCabinetForSharing();if(!presentationModules.length)throw Error('Adicione pelo menos um móvel à apresentação.');
  const payload={version:1,title:document.getElementById('presentation-title').value.trim().slice(0,100),modules:presentationModules,placements:presentationPlacements,labels:presentationLabels};
  const bytes=new TextEncoder().encode(JSON.stringify(payload));let binary='';for(const b of bytes)binary+=String.fromCharCode(b);
  const token=btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -447,8 +470,7 @@ refreshFinishes();
 
 document.getElementById('quick-share-3d').addEventListener('click',()=>{
  try{
-  if(!presentationModules.length){document.getElementById('add-presentation-module').click()}
-  if(!presentationModules.length)return presentationReport('Não foi possível preparar o móvel. Confira as medidas.');
+  // O gerador de link inclui automaticamente o móvel atualmente em edição.
   document.getElementById('create-presentation-link').click();
   const link=document.getElementById('presentation-link');
   if(!link.value)return;
