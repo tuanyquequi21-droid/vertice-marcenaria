@@ -7,7 +7,7 @@ const host=document.getElementById('scene');host.appendChild(renderer.domElement
 scene.add(new THREE.HemisphereLight(0xffffff,0x777777,2));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(2,4,5);scene.add(light);
 const group=new THREE.Group();scene.add(group);
 let project=null,rotation={x:0,y:0},drag=null,showFront=true,doorsOpened=false,doorMeta=[];
-let viewDistance=3,viewTarget=new THREE.Vector3(),viewAzimuth=.48,viewElevation=.22,modelSize=2;
+let viewDistance=3,viewTarget=new THREE.Vector3(),viewAzimuth=.48,viewElevation=.22,modelSize=2,modelWidth=.8,modelHeight=2.2,modelDepth=.55;
 const fronts=[];
 const material=new THREE.MeshStandardMaterial({color:0xbda889,roughness:.75});
 function addBox(x,y,z,w,h,d){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);group.add(mesh)}
@@ -35,7 +35,7 @@ function draw(p){fronts.length=0;doorMeta=[];doorsOpened=false;while(group.child
  for(let i=0;i<drawers;i++){addBox(bayX,-H/2+(i+.5)*DH/drawers,D/2+.012,bayW-.006,DH/drawers-.004,T);fronts.push(group.children[group.children.length-1])}
  for(let i=0;i<drawers;i++){const y=-H/2+(i+.5)*DH/drawers,boxH=Math.min(.16,DH/drawers-.05),boxW=(p.layout.bayWidth-2*t-26)/1000,boxD=(d-60)/1000;addBox(bayX-boxW/2,y,0,T,boxH,boxD);addBox(bayX+boxW/2,y,0,T,boxH,boxD);addBox(bayX,y,-boxD/2,boxW,boxH,T);addBox(bayX,y,boxD/2,boxW,boxH,T);addBox(bayX,y-boxH/2,0,boxW,.006,boxD)}
  for(const front of fronts)front.visible=showFront;
- modelSize=Math.sqrt(W*W+H*H+D*D);resetCamera();document.getElementById('previewDoors').textContent='Simular abertura das portas';render();
+ modelSize=Math.sqrt(W*W+H*H+D*D);modelWidth=W;modelHeight=H;modelDepth=D;resetCamera();document.getElementById('previewDoors').textContent='Simular abertura das portas';render();
 }
 function updateDoorPreview(){
  for(const item of doorMeta){
@@ -60,7 +60,9 @@ function cameraFitDistance(){
  const aspect=Math.max(.35,(host.clientWidth||600)/(host.clientHeight||450));
  const vfov=THREE.MathUtils.degToRad(camera.fov);
  const hfov=2*Math.atan(Math.tan(vfov/2)*aspect);
- return Math.max(modelSize/(2*Math.sin(vfov/2)),modelSize/(2*Math.sin(hfov/2)))*1.25;
+ const horizontal=Math.sqrt(modelWidth*modelWidth+modelDepth*modelDepth);
+ const vertical=modelHeight+modelDepth*.3;
+ return Math.max(vertical/(2*Math.tan(vfov/2)),horizontal/(2*Math.tan(hfov/2)))*1.25;
 }
 function updateCamera(){
  viewElevation=THREE.MathUtils.clamp(viewElevation,-1.35,1.35);
@@ -102,9 +104,38 @@ document.getElementById('zoomout').addEventListener('click',()=>zoomCamera(1.25)
 const canvas=renderer.domElement;
 canvas.style.touchAction='none';
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,mode:e.shiftKey||e.button===2?'pan':'orbit'};canvas.setPointerCapture(e.pointerId)});
-canvas.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(drag.mode==='pan')panCamera(dx,dy);else{viewAzimuth-=dx*.005;viewElevation+=dy*.005;updateCamera()}drag.x=e.clientX;drag.y=e.clientY});
-canvas.addEventListener('pointerup',()=>{drag=null});canvas.addEventListener('pointercancel',()=>{drag=null});
+const pointers=new Map();
+canvas.addEventListener('pointerdown',e=>{
+ pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pointers.size===1)drag={x:e.clientX,y:e.clientY,mode:e.shiftKey||e.button===2?'pan':'orbit'};
+ else drag=null;
+ canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove',e=>{
+ if(!pointers.has(e.pointerId))return;
+ const previous=pointers.get(e.pointerId);
+ pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pointers.size===2){
+  const current=[...pointers.values()],other=current.find(p=>p!==pointers.get(e.pointerId));
+  if(other){
+   const before=Math.hypot(previous.x-other.x,previous.y-other.y);
+   const after=Math.hypot(e.clientX-other.x,e.clientY-other.y);
+   if(before>8&&after>8)zoomCamera(before/after);
+   panCamera((e.clientX-previous.x)/2,(e.clientY-previous.y)/2);
+  }
+ }else if(drag){
+  const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+  if(drag.mode==='pan')panCamera(dx,dy);
+  else{viewAzimuth-=dx*.005;viewElevation+=dy*.005;updateCamera()}
+  drag.x=e.clientX;drag.y=e.clientY;
+ }
+});
+function releasePointer(e){pointers.delete(e.pointerId);drag=null}
+canvas.addEventListener('pointerup',releasePointer);
+canvas.addEventListener('pointercancel',releasePointer);
+for(const [id,dx,dy] of [['panleft',-50,0],['panright',50,0],['panup',0,-50],['pandown',0,50]]){
+ document.getElementById(id).addEventListener('click',()=>panCamera(dx,dy));
+}
 canvas.addEventListener('wheel',e=>{e.preventDefault();if(e.shiftKey)panCamera(e.deltaX*.35,e.deltaY*.35);else zoomCamera(Math.exp(THREE.MathUtils.clamp(e.deltaY,-120,120)*.002))},{passive:false});
 
 // Modo interno: oculta apenas portas e frentes de gaveta, mantendo a estrutura.
