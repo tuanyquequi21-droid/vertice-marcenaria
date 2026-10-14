@@ -9,7 +9,7 @@ const root=new THREE.Group();scene.add(root);let distance=4,azimuth=.55,elevatio
 const material=new THREE.MeshStandardMaterial({color:0xbda889,roughness:.67});
 const bodyMaterial=material.clone(),doorMaterial=material.clone(),drawerMaterial=material.clone();
 let independentColors=false;
-function box(g,x,y,z,w,h,d,part='body'){if(w<=0||h<=0||d<=0)return;const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),independentColors?(part==='door'?doorMaterial:part==='drawer'?drawerMaterial:bodyMaterial):material);m.position.set(x,y,z);g.add(m)}
+function box(g,x,y,z,w,h,d,part='body'){if(w<=0||h<=0||d<=0)return;const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),independentColors?(part==='door'?doorMaterial:part==='drawer'?drawerMaterial:bodyMaterial):material);m.position.set(x,y,z);m.userData.partType=part;g.add(m)}
 function furniture(params,offset){const p=calculateCabinet(params),w=p.dimensions.width/1000,h=p.dimensions.height/1000,d=p.dimensions.depth/1000,t=Number(params.thickness||18)/1000;
  const g=new THREE.Group();g.position.x=offset;root.add(g);
  box(g,-w/2+t/2,0,0,t,h,d);box(g,w/2-t/2,0,0,t,h,d);box(g,0,-h/2+t/2,0,w-2*t,t,d);box(g,0,h/2-t/2,0,w-2*t,t,d);box(g,0,0,-d/2+.003,w,h,.006);
@@ -19,6 +19,7 @@ function furniture(params,offset){const p=calculateCabinet(params),w=p.dimension
  for(let i=0;i<doors;i++)box(g,stack?0:-w/2+(i+.5)*w/doors,stack?dh/2-ph/2+(i+.5)*ph/doors:dh/2,d/2+.012,stack?w-.006:w/doors-.006,stack?ph/doors-.004:ph-.004,t,'door');
  const drawers=Number(params.drawers||0),bayX=-w/2+t+(p.layout.drawerBay-.5)*p.layout.bayWidth/1000+(p.layout.drawerBay-1)*t;
  for(let i=0;i<drawers;i++)box(g,bayX,-h/2+(i+.5)*dh/drawers,d/2+.012,p.layout.bayWidth/1000-.006,dh/drawers-.004,t,'drawer');
+ if(params._colors){for(const mesh of g.children){const key=mesh.userData.partType==='door'?'doors':mesh.userData.partType==='drawer'?'drawers':'body';if(/^#[0-9a-fA-F]{6}$/.test(params._colors[key]||'')){mesh.material=mesh.material.clone();mesh.material.map=null;mesh.material.color.set(params._colors[key]);}}}
  return {w,h};
 }
 function update(){camera.position.set(target.x+distance*Math.sin(azimuth)*Math.cos(elevation),target.y+distance*Math.sin(elevation),target.z+distance*Math.cos(azimuth)*Math.cos(elevation));camera.lookAt(target);render()}
