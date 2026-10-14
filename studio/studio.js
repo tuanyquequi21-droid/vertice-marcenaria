@@ -457,3 +457,16 @@ document.getElementById('quick-share-3d').addEventListener('click',()=>{
   presentationReport('Link 3D pronto para copiar e enviar ao cliente. O cliente pode explorar sem editar.');
  }catch(e){presentationReport('Erro ao gerar link: '+e.message)}
 });
+
+function activateStudioStep(step){
+ const steps=['create','room','finish','share'];
+ if(!steps.includes(step))return;
+ document.querySelectorAll('#studio-steps [data-step]').forEach(b=>{const active=b.dataset.step===step;b.setAttribute('aria-pressed',String(active));b.style.background=active?'#b08b46':'';b.style.color=active?'#fff':''});
+ const panels={create:document.getElementById('form'),room:document.getElementById('placement-panel'),finish:document.getElementById('finish-panel'),share:document.getElementById('share-panel')};
+ for(const [key,panel] of Object.entries(panels))if(panel){panel.style.outline=key===step?'2px solid #b08b46':'';panel.style.outlineOffset=key===step?'4px':''}
+ if(step==='room'&&presentationModules.length){if(!presentationPreview)drawPresentation();interactionMode='move';syncInteractionMode()}
+ if(step==='create'){interactionMode='view';syncInteractionMode()}
+ if(step==='share'&&presentationModules.length&&!document.getElementById('presentation-link').value)document.getElementById('create-presentation-link').click();
+ const panel=panels[step];if(panel)panel.scrollIntoView({behavior:'smooth',block:'center'});
+}
+document.querySelectorAll('#studio-steps [data-step]').forEach(b=>b.addEventListener('click',()=>activateStudioStep(b.dataset.step)));
