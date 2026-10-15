@@ -3,7 +3,7 @@
 // Não substitui conferência de esquadro, refilo, espessura do disco e plano CNC.
 export function planCutting(parts,{sheetWidth=2750,sheetHeight=1850,kerf=3,margin=10,grainLocked=true}={}){
  const W=Number(sheetWidth),H=Number(sheetHeight),K=Number(kerf),M=Number(margin);
- if(![W,H,K,M].every(Number.isFinite)||W<=2*M||H<=2*M||K<0||M<0||![W,H,K,M].every(v=>Math.round(v*100)===v*100))throw Error('Dimensões da chapa, refilo ou serra inválidas.');
+ if(![W,H,K,M].every(Number.isFinite)||W<=2*M||H<=2*M||K<0||M<0||![W,H,K,M].every(v=>Math.abs(Math.round(v*100)-v*100)<.000001))throw Error('Dimensões da chapa, refilo ou serra inválidas.');
  const groups=new Map(),unplaced=[];
  for(const p of parts){
   const thick=Number(p.thickness),count=Number(p.qty);
