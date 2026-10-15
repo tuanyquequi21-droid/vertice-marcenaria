@@ -407,6 +407,11 @@ function drawPresentation(){
  const bounds=new THREE.Box3().setFromObject(presentationGroup),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
  modelWidth=Math.max(total,size.x);modelHeight=Math.max(maxHeight,size.y);modelDepth=Math.max(.55,size.z);modelSize=Math.sqrt(modelWidth**2+modelHeight**2+modelDepth**2);resetCamera();viewTarget.copy(center);updateCamera();
 }
+document.getElementById('module-type').addEventListener('change',e=>{
+ const base=document.getElementById('base-type');
+ if(e.target.value==='aereo')base.value='none';
+ else if(e.target.value==='balcao'&&base.value==='none')base.value='plinth';
+});
 document.getElementById('add-presentation-module').addEventListener('click',()=>{
  try{
   const params=Object.fromEntries(new FormData(document.getElementById('form')));calculateCabinet(params);
