@@ -326,7 +326,7 @@ for(const [id,h,v,label] of [
   if(status)status.textContent='Vista deslocada para '+label+'.';
  });
 }
-canvas.addEventListener('wheel',e=>{e.preventDefault();if(e.shiftKey)panCamera(e.deltaX*.35,e.deltaY*.35);else zoomCamera(Math.exp(THREE.MathUtils.clamp(e.deltaY,-120,120)*.002))},{passive:false});
+canvas.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.altKey){return}e.preventDefault();if(e.shiftKey)panCamera(e.deltaX*.35,e.deltaY*.35);else zoomCamera(Math.exp(THREE.MathUtils.clamp(e.deltaY,-120,120)*.002))},{passive:false});
 
 // Modo interno: oculta apenas portas e frentes de gaveta, mantendo a estrutura.
 document.getElementById('interior').addEventListener('click',()=>{showFront=!showFront;for(const front of fronts)front.visible=showFront;document.getElementById('interior').textContent=showFront?'Ver parte interna':'Mostrar portas e gavetas';render()});
@@ -641,6 +641,16 @@ const FINISH_KEY='vertice:studio:finishes:v1';
 let activeShareFinishImage=null;
 let finishes=[];
 try{finishes=JSON.parse(localStorage.getItem(FINISH_KEY)||'[]');if(!Array.isArray(finishes))finishes=[]}catch{finishes=[]}
+function finishIdentity(f){return [f.brand,f.name].map(v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().replace(/\s+/g,' ').toLocaleLowerCase('pt-BR')).join('::')}
+function unifyFinishes(){
+ const unique=new Map();
+ for(const f of finishes){const key=finishIdentity(f);if(!key||key==='::')continue;
+  if(unique.has(key)){const existing=unique.get(key);if(!existing.image&&f.image)existing.image=f.image}
+  else unique.set(key,{...f});
+ }
+ if(unique.size!==finishes.length){finishes=[...unique.values()];try{localStorage.setItem(FINISH_KEY,JSON.stringify(finishes))}catch(e){console.warn('Falha ao salvar acabamentos unificados',e)}}
+}
+unifyFinishes();
 function finishReport(msg){document.getElementById('finish-status').textContent=msg}
 function refreshFinishes(){
  const select=document.getElementById('finish-list'),old=select.value;select.replaceChildren();
@@ -663,6 +673,12 @@ document.getElementById('finish-save').onclick=async()=>{
  try{
   const brand=document.getElementById('finish-brand').value.trim(),name=document.getElementById('finish-name').value.trim(),color=document.getElementById('finish-color').value;
   if(!brand||!name)throw Error('Informe fabricante e nome do padrão.');
+  const duplicate=finishes.findIndex(f=>finishIdentity(f)===finishIdentity({brand,name}));
+  if(duplicate>=0){
+   document.getElementById('finish-list').value=String(duplicate);
+   finishReport('Este acabamento já existe: '+finishes[duplicate].brand+' — '+finishes[duplicate].name+'. Cadastro unificado, sem duplicar.');
+   return;
+  }
   if(finishes.length>=30)throw Error('Limite local de 30 padrões. Exporte/limpe padrões antigos antes de cadastrar mais.');
   const file=document.getElementById('finish-image').files[0];let image=null;
   if(file){
