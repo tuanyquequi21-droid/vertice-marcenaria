@@ -33,7 +33,7 @@ export function planCutting(parts,{sheetWidth=2750,sheetHeight=1850,kerf=3,margi
     }
    }
    if(!best){
-    const sheet={thickness,width:W,height:H,free:[{x:M,y:M,w:W-2*M,h:H-2*M}],pieces:[]};
+    const sheet={thickness,width:W,height:H,free:[{x:M,y:M,w:W-2*M,h:H-2*M}],pieces:[],cuts:[]};
     local.push(sheet);
     for(const rotated of orientations(item)){
      const w=rotated?item.height:item.width,h=rotated?item.width:item.height;
@@ -57,8 +57,18 @@ export function planCutting(parts,{sheetWidth=2750,sheetHeight=1850,kerf=3,margi
    sheet.pieces.push({...item,x:space.x,y:space.y,w,h,rotated});
    // Corte guilhotinado: divide o espaço restante em duas áreas sem sobreposição.
    const remW=space.w-w-K,remH=space.h-h-K;
-   if(remW>0)sheet.free.push({x:space.x+w+K,y:space.y,w:remW,h:space.h});
-   if(remH>0)sheet.free.push({x:space.x,y:space.y+h+K,w,h:remH});
+   // Sequência geométrica de seccionamento: primeiro corte vertical
+   // atravessando a área livre, depois corte horizontal no retângulo separado.
+   // O traço representa a faixa consumida pela serra, não a dimensão acabada.
+   const pieceIndex=sheet.pieces.length;
+   if(remW>0){
+    sheet.cuts.push({number:sheet.cuts.length+1,axis:'vertical',x:space.x+w,y:space.y,length:space.h,kerf:K,pieceIndex});
+    sheet.free.push({x:space.x+w+K,y:space.y,w:remW,h:space.h});
+   }
+   if(remH>0){
+    sheet.cuts.push({number:sheet.cuts.length+1,axis:'horizontal',x:space.x,y:space.y+h,length:w,kerf:K,pieceIndex});
+    sheet.free.push({x:space.x,y:space.y+h+K,w,h:remH});
+   }
   }
   sheets.push(...local);
  }
@@ -80,5 +90,7 @@ export function planCutting(parts,{sheetWidth=2750,sheetHeight=1850,kerf=3,margi
    }
   }
  }
- return {sheets,unplaced,byThickness:[...new Set(sheets.map(s=>s.thickness))].map(thickness=>({thickness,quantity:sheets.filter(s=>s.thickness===thickness).length})),grainLocked,kerf:K,margin:M};
+ const totalCuts=sheets.reduce((sum,s)=>sum+s.cuts.length,0);
+ const cutLengthMm=sheets.reduce((sum,s)=>sum+s.cuts.reduce((n,cut)=>n+cut.length,0),0);
+ return {totalCuts,cutLengthMm,sheets,unplaced,byThickness:[...new Set(sheets.map(s=>s.thickness))].map(thickness=>({thickness,quantity:sheets.filter(s=>s.thickness===thickness).length})),grainLocked,kerf:K,margin:M};
 }
