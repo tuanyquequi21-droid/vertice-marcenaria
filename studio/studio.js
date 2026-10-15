@@ -1,7 +1,5 @@
 import {calculateCabinet} from './engine.mjs';
 import {planCutting} from './cutting.mjs';
-import {cuttingReportHTML} from './cutting-report.mjs';
-import {assemblyManualHTML} from './workshop-manual.mjs';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
 
 // Bordas discretamente arredondadas simulam a quina real do MDF com fita de borda.
@@ -509,21 +507,23 @@ document.getElementById('analyze-sketchup').addEventListener('click',()=>{
  const simple=detected.filter(p=>p.dimensions.every(v=>v>0));
  sketchupStatus.textContent='Análise preliminar: '+detected.length+' malhas; '+simple.length+' caixas delimitadoras. As medidas presumem GLB em metros. Caixas delimitadoras não comprovam que uma malha seja uma chapa retangular. Não foi gerado plano de corte automático sem validação.';
 });
-document.getElementById('assembly-manual').addEventListener('click',()=>{
+document.getElementById('assembly-manual').addEventListener('click',async()=>{
  try{
   const params=Object.fromEntries(new FormData(document.getElementById('form')));
   const model=calculateCabinet(params);
+  const {assemblyManualHTML}=await import('./workshop-manual.mjs');
   const html=assemblyManualHTML(model,params,{projectName:'Manual de montagem — Vértice Studio'});
   download('vertice-manual-montagem.html',html,'text/html;charset=utf-8');
   report('Manual exportado. Abra o HTML e clique em Imprimir / Salvar PDF. Furação e ferragens devem ser validadas.');
  }catch(err){report('Erro ao gerar manual: '+err.message)}
 });
-document.getElementById('export-cut').addEventListener('click',()=>{
+document.getElementById('export-cut').addEventListener('click',async()=>{
  try{
   const plan=getCutPlan();
   if(plan.unplaced.length)throw Error('Plano incompleto: existem '+plan.unplaced.length+' peças que não cabem. Corrija antes de exportar.');
   const params=Object.fromEntries(new FormData(document.getElementById('form')));
   const parts=calculateCabinet(params).parts;
+  const {cuttingReportHTML}=await import('./cutting-report.mjs');
   const html=cuttingReportHTML(plan,parts,{projectName:'Plano de corte — Vértice Studio',backColor:params.backColor});
   const blob=new Blob([html],{type:'text/html;charset=utf-8'});
   const url=URL.createObjectURL(blob);
@@ -532,12 +532,13 @@ document.getElementById('export-cut').addEventListener('click',()=>{
   report('Relatório exportado em HTML. Abra o arquivo e clique em Imprimir / Salvar como PDF.');
  }catch(err){report('Não foi possível exportar: '+err.message)}
 });
-document.getElementById('export-labels').addEventListener('click',()=>{
+document.getElementById('export-labels').addEventListener('click',async()=>{
  try{
   const plan=getCutPlan();
   if(plan.unplaced.length)throw Error('Existem peças fora das chapas. Ajuste o plano antes de imprimir etiquetas.');
   const params=Object.fromEntries(new FormData(document.getElementById('form')));
   const parts=calculateCabinet(params).parts;
+  const {cuttingReportHTML}=await import('./cutting-report.mjs');
   let html=cuttingReportHTML(plan,parts,{projectName:'Etiquetas — Vértice Marcenaria',backColor:params.backColor});
   html=html.replace('<body>','<body class="labels-only">');
   html=html.replace('</style>','body.labels-only .page{display:none}body.labels-only .labels-page h2,body.labels-only .labels-page .note{display:none}body.labels-only .labels-page{break-before:auto}</style>');
