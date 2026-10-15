@@ -1,4 +1,5 @@
 import {calculateCabinet} from './engine.mjs';
+import {planCutting} from './cutting.mjs';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
 
 // Bordas discretamente arredondadas simulam a quina real do MDF com fita de borda.
@@ -255,7 +256,7 @@ function renderEdgeBanding(p){
 document.getElementById('edge-waste-percent').addEventListener('change',()=>{
  try{renderEdgeBanding(calculateCabinet(Object.fromEntries(new FormData(document.getElementById('form')))))}catch(e){document.getElementById('edge-summary').textContent=e.message}
 });
-document.getElementById('form').addEventListener('submit',e=>{e.preventDefault();try{const data=Object.fromEntries(new FormData(e.target));const p=calculateCabinet(data);project={schemaVersion:1,kind:'cabinet',params:data};draw(p);renderEdgeBanding(p);document.getElementById('error').textContent='';document.getElementById('totals').textContent='Área: '+p.areaM2.toFixed(2)+' m² | Fita: '+p.edgeM.toFixed(2)+' m | Materiais estimados: '+p.estimatedMaterialCost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});document.getElementById('hardware').replaceChildren(...p.hardware.map(item=>{const tr=document.createElement('tr');for(const value of [item.label,item.quantity,item.unit]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}));document.getElementById('parts').replaceChildren(...p.parts.map(part=>{const tr=document.createElement('tr');for(const value of [part.name,part.qty,part.width.toFixed(1)+' × '+part.height.toFixed(1)+' × '+part.thickness]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}))}catch(err){document.getElementById('error').textContent=err.message}});
+document.getElementById('form').addEventListener('submit',e=>{e.preventDefault();try{const data=Object.fromEntries(new FormData(e.target));const p=calculateCabinet(data);project={schemaVersion:1,kind:'cabinet',params:data};draw(p);renderEdgeBanding(p);renderCutPlan();document.getElementById('error').textContent='';document.getElementById('totals').textContent='Área: '+p.areaM2.toFixed(2)+' m² | Fita: '+p.edgeM.toFixed(2)+' m | Materiais estimados: '+p.estimatedMaterialCost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});document.getElementById('hardware').replaceChildren(...p.hardware.map(item=>{const tr=document.createElement('tr');for(const value of [item.label,item.quantity,item.unit]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}));document.getElementById('parts').replaceChildren(...p.parts.map(part=>{const tr=document.createElement('tr');for(const value of [part.name,part.qty,part.width.toFixed(1)+' × '+part.height.toFixed(1)+' × '+part.thickness]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}))}catch(err){document.getElementById('error').textContent=err.message}});
 queueMicrotask(()=>document.getElementById('form').requestSubmit());
 document.getElementById('doorSwingField').hidden=false;
 document.getElementById('flapLayoutField').hidden=true;
@@ -332,6 +333,63 @@ canvas.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.altKey){return}e.preventDe
 document.getElementById('interior').addEventListener('click',()=>{showFront=!showFront;for(const front of fronts)front.visible=showFront;document.getElementById('interior').textContent=showFront?'Ver parte interna':'Mostrar portas e gavetas';render()});
 
 
+// Plano de corte: algoritmo de prateleiras guilhotinadas, por espessura.
+// As cores representam peças e não o padrão comercial do MDF.
+function getCutPlan(){
+ const params=Object.fromEntries(new FormData(document.getElementById('form')));
+ const calc=calculateCabinet(params);
+ return planCutting(calc.parts,{
+  sheetWidth:Number(document.getElementById('sheet-width').value),
+  sheetHeight:Number(document.getElementById('sheet-height').value),
+  kerf:Number(document.getElementById('cut-kerf').value),
+  margin:Number(document.getElementById('cut-margin').value),
+  grainLocked:document.getElementById('cut-grain').checked
+ });
+}
+function renderCutPlan(){
+ const summary=document.getElementById('cut-summary'),host=document.getElementById('cut-plan');
+ summary.replaceChildren();host.replaceChildren();
+ try{
+  const plan=getCutPlan(),count=plan.sheets.length;
+  for(const [label,value] of [['Chapas',String(count)],...plan.byThickness.map(g=>[g.thickness+' mm',g.quantity+' chapa(s)']),['Peças sem encaixe',String(plan.unplaced.length)]]){
+   const badge=document.createElement('span');badge.textContent=label+': '+value;summary.append(badge);
+  }
+  for(const [index,sheet] of plan.sheets.entries()){
+   const card=document.createElement('article');card.className='cut-sheet';
+   const title=document.createElement('h4');title.textContent='Chapa '+(index+1)+' · '+sheet.thickness+' mm · '+sheet.width+' × '+sheet.height+' mm';card.append(title);
+   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+   svg.setAttribute('viewBox','0 0 '+sheet.width+' '+sheet.height);svg.setAttribute('role','img');
+   svg.setAttribute('aria-label','Distribuição de '+sheet.pieces.length+' peças na chapa '+(index+1));
+   const ns='http://www.w3.org/2000/svg';
+   sheet.pieces.forEach((p,i)=>{
+    const rect=document.createElementNS(ns,'rect');
+    rect.setAttribute('x',p.x);rect.setAttribute('y',p.y);rect.setAttribute('width',p.w);rect.setAttribute('height',p.h);
+    rect.setAttribute('fill',['#c4d4dc','#e2cda8','#bdd3c1','#d9c5d9','#c9cbd9'][i%5]);
+    rect.setAttribute('stroke','#58636c');rect.setAttribute('stroke-width','3');
+    const name=p.name+' · '+Math.round(p.width)+' × '+Math.round(p.height)+' mm'+(p.rotated?' · girada':'');
+    const tooltip=document.createElementNS(ns,'title');tooltip.textContent=name;rect.append(tooltip);svg.append(rect);
+    if(p.w>150&&p.h>75){
+     const label=document.createElementNS(ns,'text');label.setAttribute('x',p.x+p.w/2);label.setAttribute('y',p.y+p.h/2);label.setAttribute('text-anchor','middle');label.setAttribute('dominant-baseline','middle');
+     label.setAttribute('font-size',Math.min(45,Math.max(22,p.w/12)));label.setAttribute('fill','#303943');label.textContent=p.name.slice(0,18);
+     const tip=document.createElementNS(ns,'title');tip.textContent=name;label.append(tip);svg.append(label);
+    }
+   });
+   card.append(svg);
+   const detail=document.createElement('p');detail.className='hint';detail.textContent=sheet.pieces.length+' peças · '+(100*sheet.pieces.reduce((s,p)=>s+p.w*p.h,0)/(sheet.width*sheet.height)).toFixed(1)+'% de aproveitamento geométrico';card.append(detail);host.append(card);
+  }
+  if(plan.unplaced.length){
+   const warning=document.createElement('p');warning.className='error';
+   warning.textContent=plan.unplaced.length+' peça(s) não couberam na chapa. Confira as dimensões e o sentido do veio: '+plan.unplaced.slice(0,5).map(p=>p.name+' ('+p.width+'×'+p.height+')').join(', ');
+   host.prepend(warning);
+  }
+  if(!plan.sheets.length&&!plan.unplaced.length)summary.textContent='Nenhuma peça para distribuir.';
+ }catch(e){summary.textContent='Não foi possível calcular o plano: '+e.message}
+}
+document.getElementById('calculate-cut').addEventListener('click',renderCutPlan);
+document.getElementById('print-cut').addEventListener('click',()=>{renderCutPlan();window.print()});
+for(const id of ['sheet-width','sheet-height','cut-kerf','cut-margin','cut-grain']){
+ document.getElementById(id).addEventListener('change',renderCutPlan);
+}
 // Ponte independente: transfere uma estimativa para revisão no Gestão, sem gravar no Supabase.
 const transferButton=document.getElementById('send-to-gestao');
 transferButton?.addEventListener('click',()=>{
