@@ -100,10 +100,10 @@ function addCabinetBase(parent,w,h,d,baseType='plinth',thickness=.018){
   }
   return;
  }
- const t=Math.max(.006,thickness),baseDepth=Math.max(.08,d-.06),z=-.015;
+ const t=Math.max(.006,thickness),baseDepth=Math.max(.08,d-.002),z=-.001;
  const baseMat=componentColorsActive?bodyMaterial:material;
  // 100 mm de rodapé sob a caixa, com fechamento frontal/traseiro e apoios laterais.
- detailBox(parent,0,y,d/2-.06-t/2,w,.10,t,baseMat);
+ detailBox(parent,0,y,d/2-.002-t/2,w,.10,t,baseMat);
  detailBox(parent,0,y,-d/2+t/2,w,.10,t,baseMat);
  for(const x of [-w/2+t/2,w/2-t/2])detailBox(parent,x,y,z,t,.10,baseDepth,baseMat);
  const supports=Math.max(0,Math.ceil(w/.5)-1);
