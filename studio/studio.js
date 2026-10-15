@@ -403,7 +403,7 @@ function renderCutPlan(){
     const tooltip=document.createElementNS(ns,'title');tooltip.textContent=name;rect.append(tooltip);svg.append(rect);
     if(p.w>150&&p.h>75){
      const label=document.createElementNS(ns,'text');label.setAttribute('x',p.x+p.w/2);label.setAttribute('y',p.y+p.h/2);label.setAttribute('text-anchor','middle');label.setAttribute('dominant-baseline','middle');
-     label.setAttribute('font-size',Math.min(45,Math.max(22,p.w/12)));label.setAttribute('fill','#303943');label.textContent=p.name.slice(0,13)+' '+p.width+'×'+p.height;
+     label.setAttribute('font-size',Math.min(45,Math.max(22,p.w/12)));label.setAttribute('fill','#303943');label.textContent=p.name;
      const tip=document.createElementNS(ns,'title');tip.textContent=name;label.append(tip);svg.append(label);
     }
    });
