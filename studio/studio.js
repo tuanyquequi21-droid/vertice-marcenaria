@@ -1,6 +1,7 @@
 import {calculateCabinet} from './engine.mjs';
 import {planCutting} from './cutting.mjs';
 import {cuttingReportHTML} from './cutting-report.mjs';
+import {assemblyManualHTML} from './assembly-manual.mjs';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
 
 // Bordas discretamente arredondadas simulam a quina real do MDF com fita de borda.
@@ -29,6 +30,20 @@ const scene=new THREE.Scene();scene.background=new THREE.Color('#34383d');
 const camera=new THREE.PerspectiveCamera(40,1,.1,30);camera.position.set(2.8,2.1,3.8);camera.lookAt(0,0,0);
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2.5));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const host=document.getElementById('scene');host.appendChild(renderer.domElement);
+const viewerNotice=document.createElement('div');
+viewerNotice.setAttribute('role','status');
+viewerNotice.style.cssText='display:none;padding:10px;background:#fff4dd;color:#66470b;border:1px solid #d8ad5c;margin:6px 0;font-size:13px';
+host.insertAdjacentElement('afterend',viewerNotice);
+renderer.domElement.addEventListener('webglcontextlost',e=>{
+ e.preventDefault();
+ viewerNotice.style.display='block';
+ viewerNotice.textContent='A visualização 3D perdeu o contexto gráfico. Aguarde a recuperação ou recarregue a página.';
+});
+renderer.domElement.addEventListener('webglcontextrestored',()=>{
+ viewerNotice.style.display='none';
+ try{resetCamera();render()}catch(err){viewerNotice.textContent='Falha ao recuperar o desenho: '+err.message;viewerNotice.style.display='block'}
+});
+
 scene.add(new THREE.HemisphereLight(0xffffff,0x777777,2));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(2,4,5);light.castShadow=true;light.shadow.mapSize.set(2048,2048);light.shadow.camera.left=-7;light.shadow.camera.right=7;light.shadow.camera.top=7;light.shadow.camera.bottom=-7;light.shadow.bias=-0.00015;light.shadow.normalBias=.025;scene.add(light);
 const fill=new THREE.DirectionalLight(0xc9d8ff,.65);fill.position.set(-4,2,-3);scene.add(fill);
 const group=new THREE.Group();scene.add(group);
@@ -456,6 +471,15 @@ document.getElementById('back-type').addEventListener('change',()=>{
 document.getElementById('back-color').addEventListener('change',()=>document.getElementById('form').requestSubmit());
 document.getElementById('calculate-cut').addEventListener('click',renderCutPlan);
 document.getElementById('jump-cut').addEventListener('click',()=>{document.getElementById('materials-panel').scrollIntoView({behavior:'smooth',block:'start'});});
+document.getElementById('assembly-manual').addEventListener('click',()=>{
+ try{
+  const params=Object.fromEntries(new FormData(document.getElementById('form')));
+  const model=calculateCabinet(params);
+  const html=assemblyManualHTML(model,params,{projectName:'Manual de montagem — Vértice Studio'});
+  download('vertice-manual-montagem.html',html,'text/html;charset=utf-8');
+  report('Manual exportado. Abra o HTML e clique em Imprimir / Salvar PDF. Furação e ferragens devem ser validadas.');
+ }catch(err){report('Erro ao gerar manual: '+err.message)}
+});
 document.getElementById('export-cut').addEventListener('click',()=>{
  try{
   const plan=getCutPlan();
