@@ -1,7 +1,7 @@
 import {calculateCabinet} from './engine.mjs';
 import {planCutting} from './cutting.mjs';
 import {cuttingReportHTML} from './cutting-report.mjs';
-import {assemblyManualHTML} from './assembly-manual.mjs';
+import {assemblyManualHTML} from './workshop-manual.mjs';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
 
 // Bordas discretamente arredondadas simulam a quina real do MDF com fita de borda.
@@ -531,6 +531,19 @@ document.getElementById('export-cut').addEventListener('click',()=>{
   setTimeout(()=>URL.revokeObjectURL(url),15000);
   report('Relatório exportado em HTML. Abra o arquivo e clique em Imprimir / Salvar como PDF.');
  }catch(err){report('Não foi possível exportar: '+err.message)}
+});
+document.getElementById('export-labels').addEventListener('click',()=>{
+ try{
+  const plan=getCutPlan();
+  if(plan.unplaced.length)throw Error('Existem peças fora das chapas. Ajuste o plano antes de imprimir etiquetas.');
+  const params=Object.fromEntries(new FormData(document.getElementById('form')));
+  const parts=calculateCabinet(params).parts;
+  let html=cuttingReportHTML(plan,parts,{projectName:'Etiquetas — Vértice Marcenaria',backColor:params.backColor});
+  html=html.replace('<body>','<body class="labels-only">');
+  html=html.replace('</style>','body.labels-only .page{display:none}body.labels-only .labels-page h2,body.labels-only .labels-page .note{display:none}body.labels-only .labels-page{break-before:auto}</style>');
+  download('vertice-etiquetas.html',html,'text/html;charset=utf-8');
+  report('Etiquetas exportadas. Abra o arquivo e clique em Imprimir somente etiquetas.');
+ }catch(err){report('Erro ao gerar etiquetas: '+err.message)}
 });
 document.getElementById('print-cut').addEventListener('click',()=>{renderCutPlan();window.print()});
 for(const id of ['sheet-width','sheet-height','cut-kerf','cut-margin','cut-grain']){
