@@ -160,21 +160,32 @@ document.getElementById('doorType').addEventListener('change',e=>{
  document.getElementById('doorSwingField').hidden=e.target.value!=='hinged';
  document.getElementById('flapLayoutField').hidden=e.target.value!=='flap-down';
 });
+function visibleModelBounds(){
+ const active=presentationPreview&&presentationGroup.visible?presentationGroup:group;
+ active.updateWorldMatrix(true,true);
+ const box=new THREE.Box3().setFromObject(active);
+ return box.isEmpty()?new THREE.Box3(new THREE.Vector3(-.4,-1.1,-.3),new THREE.Vector3(.4,1.1,.3)):box;
+}
 function cameraFitDistance(){
+ const bounds=visibleModelBounds(),size=bounds.getSize(new THREE.Vector3());
  const aspect=Math.max(.35,(host.clientWidth||600)/(host.clientHeight||450));
  const vfov=THREE.MathUtils.degToRad(camera.fov);
  const hfov=2*Math.atan(Math.tan(vfov/2)*aspect);
- const horizontal=Math.sqrt(modelWidth*modelWidth+modelDepth*modelDepth);
- const vertical=modelHeight+modelDepth*.3;
- return Math.max(vertical/(2*Math.tan(vfov/2)),horizontal/(2*Math.tan(hfov/2)))*1.25;
+ const radius=.5*Math.sqrt(size.x**2+size.y**2+size.z**2);
+ return Math.max(radius/Math.sin(Math.min(vfov,hfov)/2)*1.14,.25);
 }
 function updateCamera(){
- viewElevation=THREE.MathUtils.clamp(viewElevation,-1.35,1.35);
- viewDistance=THREE.MathUtils.clamp(viewDistance,modelSize*.6,modelSize*12);
+ viewElevation=THREE.MathUtils.clamp(viewElevation,-1.48,1.48);
+ viewDistance=THREE.MathUtils.clamp(viewDistance,.035,Math.max(50,modelSize*30));
  camera.position.set(viewTarget.x+viewDistance*Math.sin(viewAzimuth)*Math.cos(viewElevation),viewTarget.y+viewDistance*Math.sin(viewElevation),viewTarget.z+viewDistance*Math.cos(viewAzimuth)*Math.cos(viewElevation));
- camera.lookAt(viewTarget);render();
+ camera.near=Math.max(.001,viewDistance/10000);
+ camera.far=Math.max(150,viewDistance+100);
+ camera.updateProjectionMatrix();camera.lookAt(viewTarget);render();
 }
-function resetCamera(){viewTarget.set(0,0,0);viewAzimuth=.48;viewElevation=.22;viewDistance=cameraFitDistance();updateCamera();}
+function resetCamera(){
+ const bounds=visibleModelBounds();bounds.getCenter(viewTarget);
+ viewAzimuth=.48;viewElevation=.22;viewDistance=cameraFitDistance();updateCamera();
+}
 function zoomCamera(factor){viewDistance*=factor;updateCamera();}
 function panCamera(dx,dy){
  // Use the current camera orientation, not its local transform matrix.
@@ -235,7 +246,7 @@ document.getElementById('render-save').addEventListener('click',()=>{
  }
 });
 function render(){const width=host.clientWidth||500,height=host.clientHeight||450;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();renderer.render(scene,camera)}
-new ResizeObserver(render).observe(host);
+new ResizeObserver(()=>{render();}).observe(host);
 function renderEdgeBanding(p){
  const wasteInput=document.getElementById('edge-waste-percent');
  const waste=Number(wasteInput?.value??10);
