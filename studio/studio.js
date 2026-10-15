@@ -473,12 +473,17 @@ document.getElementById('jump-cut').addEventListener('click',()=>{document.getEl
 let importedSketchup=null;
 const importedSketchupGroup=new THREE.Group();scene.add(importedSketchupGroup);
 const sketchupStatus=document.getElementById('sketchup-status');
+const analyzeSketchupButton=document.getElementById('analyze-sketchup');
+analyzeSketchupButton.disabled=true;
+analyzeSketchupButton.title='Importe um GLB válido para habilitar a análise.';
 document.getElementById('import-sketchup').addEventListener('change',async e=>{
  const file=e.target.files?.[0];if(!file)return;
+ analyzeSketchupButton.disabled=true;
+ importedSketchup=null;
  try{
   if(/\.(skb|skp)$/i.test(file.name)){
    const kind=/\.skb$/i.test(file.name)?'backup SKB':'projeto SKP';
-   sketchupStatus.textContent='Arquivo '+kind+' reconhecido: '+file.name+'. Este Studio ainda não consegue ler a geometria do formato SketchUp. Abra o arquivo no SketchUp (para SKB, use uma cópia com extensão SKP) e exporte em GLB. Depois importe o GLB aqui. Nenhuma peça ou medida foi importada.';
+   sketchupStatus.textContent='Não importado: '+file.name+' ('+kind+'). O Studio não lê a geometria SKB/SKP. O botão de análise ficará desabilitado. Abra uma cópia do backup no SketchUp, exporte para GLB e selecione o GLB. Nenhuma medida ou peça foi reconhecida.';
    return;
   }
   if(!/\.glb$/i.test(file.name))throw Error('Formato não suportado. Selecione SKB, SKP ou GLB.');
@@ -489,6 +494,7 @@ document.getElementById('import-sketchup').addEventListener('change',async e=>{
   while(importedSketchupGroup.children.length)importedSketchupGroup.remove(importedSketchupGroup.children[0]);
   importedSketchupGroup.add(loaded.scene);
   importedSketchup=loaded.scene;
+  analyzeSketchupButton.disabled=false;
   importedSketchupGroup.visible=true;group.visible=false;presentationGroup.visible=false;presentationPreview=false;
   const bounds=new THREE.Box3().setFromObject(importedSketchupGroup);
   if(bounds.isEmpty())throw Error('Modelo sem geometria visível.');
@@ -497,7 +503,7 @@ document.getElementById('import-sketchup').addEventListener('change',async e=>{
   viewAzimuth=.48;viewElevation=.22;viewDistance=cameraFitDistance();updateCamera();
   let meshes=0;loaded.scene.traverse(o=>{if(o.isMesh)meshes++});
   sketchupStatus.textContent='GLB carregado: '+meshes+' malhas. Visualização pronta. Para corte, confirme unidade e painéis; o GLB não garante nomes nem espessuras.';
- }catch(err){sketchupStatus.textContent='Erro na importação: '+err.message;importedSketchup=null;importedSketchupGroup.visible=false;group.visible=true;resetCamera()}
+ }catch(err){analyzeSketchupButton.disabled=true;sketchupStatus.textContent='Erro na importação: '+err.message;importedSketchup=null;importedSketchupGroup.visible=false;group.visible=true;resetCamera()}
 });
 document.getElementById('analyze-sketchup').addEventListener('click',()=>{
  if(!importedSketchup)return sketchupStatus.textContent='Importe um GLB primeiro.';
@@ -510,7 +516,13 @@ document.getElementById('analyze-sketchup').addEventListener('click',()=>{
   detected.push({name:o.name||'Malha sem nome',dimensions:[size.x,size.y,size.z].map(v=>Math.round(v*1000))});
  });
  const simple=detected.filter(p=>p.dimensions.every(v=>v>0));
- sketchupStatus.textContent='Análise preliminar: '+detected.length+' malhas; '+simple.length+' caixas delimitadoras. As medidas presumem GLB em metros. Caixas delimitadoras não comprovam que uma malha seja uma chapa retangular. Não foi gerado plano de corte automático sem validação.';
+ sketchupStatus.textContent='Análise preliminar: '+detected.length+' malhas; '+simple.length+' caixas delimitadoras. As medidas presumem GLB em metros. Não foi gerado plano de corte automático.';
+ const existing=document.getElementById('sketchup-analysis-results');existing?.remove();
+ const result=document.createElement('div');result.id='sketchup-analysis-results';result.style.cssText='margin:10px 0;padding:12px;background:#fff;border:1px solid #ddd;border-radius:8px;max-height:300px;overflow:auto';
+ const title=document.createElement('strong');title.textContent='Peças candidatas detectadas (não validadas)';result.append(title);
+ const list=document.createElement('ol');for(const part of simple.slice(0,100)){const li=document.createElement('li');li.textContent=part.name+' — '+part.dimensions.join(' × ')+' mm (caixa delimitadora)';list.append(li)}result.append(list);
+ const note=document.createElement('p');note.textContent='Medidas estimadas a partir das caixas 3D, assumindo GLB em metros. Ainda não é um plano de corte nem prova de que as malhas sejam chapas.';result.append(note);
+ sketchupStatus.after(result);
 });
 document.getElementById('assembly-manual').addEventListener('click',async()=>{
  try{
