@@ -54,32 +54,29 @@ function detailBox(parent,x,y,z,w,h,d,mat){
  mesh.userData.decorative=true;parent.add(mesh);return mesh;
 }
 function addFrontDetails(parent,front,kind='door'){
- const {x,y,z}=front.position;
  const bounds=new THREE.Vector3();front.geometry.computeBoundingBox();front.geometry.boundingBox.getSize(bounds);
  const width=bounds.x,height=bounds.y,thick=bounds.z;
- const frontZ=z+thick/2+.0018;
- // Perfil estreito da fita na face frontal, visível em luz rasante.
+ const frontZ=thick/2+.0018;
  const edge=.0014;
- detailBox(parent,x-width/2+edge/2,y,frontZ,edge,height,edge,trimMaterial);
- detailBox(parent,x+width/2-edge/2,y,frontZ,edge,height,edge,trimMaterial);
- detailBox(parent,x,y-height/2+edge/2,frontZ,width,edge,edge,trimMaterial);
- detailBox(parent,x,y+height/2-edge/2,frontZ,width,edge,edge,trimMaterial);
- // Puxador discreto tipo barra; o comprimento respeita o tamanho da frente.
+ detailBox(front,-width/2+edge/2,0,frontZ,edge,height,edge,trimMaterial);
+ detailBox(front,width/2-edge/2,0,frontZ,edge,height,edge,trimMaterial);
+ detailBox(front,0,-height/2+edge/2,frontZ,width,edge,edge,trimMaterial);
+ detailBox(front,0,height/2-edge/2,frontZ,width,edge,edge,trimMaterial);
  if(width>.14&&height>.11){
   const horizontal=kind==='drawer'||height<.24;
   const barLength=Math.min(horizontal?width*.38:height*.22,.17);
   const offset=Math.min(.065,width*.18);
-  const hx=horizontal?x:x+width/2-offset;
-  const hy=horizontal?y+height/2-Math.min(.10,height*.17):y;
+  const hx=horizontal?0:width/2-offset;
+  const hy=horizontal?height/2-Math.min(.10,height*.17):0;
   const bw=horizontal?barLength:.009,bh=horizontal?.009:barLength;
-  detailBox(parent,hx,hy,frontZ+.018,bw,bh,.012,hardwareMaterial);
+  detailBox(front,hx,hy,frontZ+.018,bw,bh,.012,hardwareMaterial);
   const pegOffset=barLength*.30;
   if(horizontal){
-   detailBox(parent,hx-pegOffset,hy,frontZ+.010,.007,.007,.021,hardwareMaterial);
-   detailBox(parent,hx+pegOffset,hy,frontZ+.010,.007,.007,.021,hardwareMaterial);
+   detailBox(front,hx-pegOffset,hy,frontZ+.010,.007,.007,.021,hardwareMaterial);
+   detailBox(front,hx+pegOffset,hy,frontZ+.010,.007,.007,.021,hardwareMaterial);
   }else{
-   detailBox(parent,hx,hy-pegOffset,frontZ+.010,.007,.007,.021,hardwareMaterial);
-   detailBox(parent,hx,hy+pegOffset,frontZ+.010,.007,.007,.021,hardwareMaterial);
+   detailBox(front,hx,hy-pegOffset,frontZ+.010,.007,.007,.021,hardwareMaterial);
+   detailBox(front,hx,hy+pegOffset,frontZ+.010,.007,.007,.021,hardwareMaterial);
   }
  }
 }
@@ -385,7 +382,7 @@ function drawPresentation(){
   const drawers=Number(params.drawers||0),bayX=-w/2+t+(p.layout.drawerBay-.5)*p.layout.bayWidth/1000+(p.layout.drawerBay-1)*t;
   for(let j=0;j<drawers;j++){presentationBox(g,bayX,-h/2+(j+.5)*dh/drawers,d/2+.012,p.layout.bayWidth/1000-.006,dh/drawers-.004,t);const front=g.children[g.children.length-1];front.userData.partType='drawer';if(componentColorsActive)front.material=drawerMaterial;addFrontDetails(g,front,'drawer');}
   addCabinetBase(g,w,h,d);
-  if(params._colors){for(const mesh of g.children){const key=mesh.userData.partType==='door'?'doors':mesh.userData.partType==='drawer'?'drawers':'body';if(/^#[0-9a-fA-F]{6}$/.test(params._colors[key]||'')){mesh.material=mesh.material.clone();mesh.material.map=null;mesh.material.color.set(params._colors[key]);}}}
+  if(params._colors){for(const mesh of g.children){if(mesh.userData.decorative)continue;const key=mesh.userData.partType==='door'?'doors':mesh.userData.partType==='drawer'?'drawers':'body';if(/^#[0-9a-fA-F]{6}$/.test(params._colors[key]||'')){mesh.material=mesh.material.clone();mesh.material.map=null;mesh.material.color.set(params._colors[key]);}}}
  }
  presentationPreview=true;group.visible=false;presentationGroup.visible=true;
  const bounds=new THREE.Box3().setFromObject(presentationGroup),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
