@@ -406,7 +406,7 @@ function renderCutPlan(){
   }
   if(plan.unplaced.length){
    const warning=document.createElement('p');warning.className='error';
-   warning.textContent=plan.unplaced.length+' peça(s) não couberam na chapa. Confira as dimensões e o sentido do veio: '+plan.unplaced.slice(0,5).map(p=>p.name+' ('+p.width+'×'+p.height+')').join(', ');
+   warning.textContent='ATENÇÃO: PLANO INCOMPLETO — '+plan.unplaced.length+' peça(s) ficaram de fora. NÃO UTILIZE PARA CORTE. Confira as dimensões e o sentido do veio: '+plan.unplaced.slice(0,5).map(p=>p.name+' ('+p.width+'×'+p.height+')').join(', ');
    host.prepend(warning);
   }
   if(!plan.sheets.length&&!plan.unplaced.length)summary.textContent='Nenhuma peça para distribuir.';
