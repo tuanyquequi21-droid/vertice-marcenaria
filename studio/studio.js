@@ -291,6 +291,22 @@ document.getElementById('zoomout').addEventListener('click',()=>zoomCamera(1.25)
 const canvas=renderer.domElement;
 canvas.style.touchAction='none';
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('dblclick',e=>{
+ const rect=canvas.getBoundingClientRect();
+ const mouse=new THREE.Vector2(((e.clientX-rect.left)/rect.width)*2-1,-((e.clientY-rect.top)/rect.height)*2+1);
+ const ray=new THREE.Raycaster();ray.setFromCamera(mouse,camera);
+ const active=presentationPreview&&presentationGroup.visible?presentationGroup:group;
+ const hit=ray.intersectObjects(active.children,true).find(h=>h.object.isMesh&&!h.object.userData.decorative);
+ if(!hit)return;
+ const bounds=new THREE.Box3().setFromObject(hit.object);
+ bounds.getCenter(viewTarget);
+ const size=bounds.getSize(new THREE.Vector3()),radius=Math.max(.025,size.length()/2);
+ const vfov=THREE.MathUtils.degToRad(camera.fov);
+ viewDistance=Math.max(.09,radius/Math.sin(vfov/2)*1.5);
+ updateCamera();
+ report('Detalhe enquadrado. Clique em Enquadrar para voltar ao móvel completo.');
+});
+
 const pointers=new Map();
 canvas.addEventListener('pointerdown',e=>{
  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
