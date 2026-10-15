@@ -72,6 +72,30 @@ export function planCutting(parts,{sheetWidth=2750,sheetHeight=1850,kerf=3,margi
   }
   sheets.push(...local);
  }
+ // Linha opcional de divisão da chapa: só sugerir quando existe uma faixa
+ // contínua livre de peças com largura suficiente para o disco.
+ function findSplit(sheet){
+  const options=[];
+  for(const axis of ['vertical','horizontal']){
+   const limit=axis==='vertical'?sheet.width:sheet.height;
+   const intervals=sheet.pieces.map(p=>axis==='vertical'?[p.x,p.x+p.w]:[p.y,p.y+p.h]).sort((a,b)=>a[0]-b[0]);
+   const merged=[];
+   for(const [lo,hi] of intervals){
+    if(merged.length&&lo<=merged[merged.length-1][1])merged[merged.length-1][1]=Math.max(hi,merged[merged.length-1][1]);
+    else merged.push([lo,hi]);
+   }
+   for(let i=0;i<merged.length-1;i++){
+    const start=merged[i][1],end=merged[i+1][0];
+    if(end-start+1e-8<K||start<M||end>limit-M)continue;
+    const pos=(start+end)/2;
+    options.push({axis,position:pos,kerf:K,length:axis==='vertical'?sheet.height:sheet.width,
+      score:Math.abs(pos-limit/2)/limit+(axis==='horizontal'?.05:0)});
+   }
+  }
+  options.sort((a,b)=>a.score-b.score);
+  return options[0]||null;
+ }
+ for(const sheet of sheets)sheet.splitSuggestion=findSplit(sheet);
  // Validação geométrica: limites, precisão das medidas e não sobreposição,
  // com espaço mínimo da serra entre todas as peças.
  const eps=.00001;
