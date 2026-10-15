@@ -54,7 +54,7 @@ export function calculateCabinet(input={}){
  if(!['bar','profile','angle45','none'].includes(handleType))throw new RangeError('Tipo de puxador inválido');
  const baseType=String(d.baseType??'plinth');
  if(!['plinth','feet','none'].includes(baseType))throw new RangeError('Tipo de base inválido');
- const plinthHeight=100,plinthDepth=Math.max(80,depth-60);
+ const plinthHeight=100,plinthDepth=depth-2;
  const baseSupports=baseType==='plinth'?Math.max(0,Math.ceil(w/500)-1):0;
  const parts=[
   {name:'Lateral',qty:2,width:depth,height:h,thickness:t,edgeMm:h},
