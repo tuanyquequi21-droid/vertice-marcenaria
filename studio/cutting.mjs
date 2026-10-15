@@ -3,7 +3,7 @@
 // Não substitui conferência de esquadro, refilo, espessura do disco e plano CNC.
 export function planCutting(parts,{sheetWidth=2750,sheetHeight=1850,kerf=3,margin=10,grainLocked=true}={}){
  const W=Number(sheetWidth),H=Number(sheetHeight),K=Number(kerf),M=Number(margin);
- if(![W,H,K,M].every(Number.isFinite)||W<=2*M||H<=2*M||K<0||M<0)throw Error('Dimensões da chapa, refilo ou serra inválidas.');
+ if(![W,H,K,M].every(Number.isFinite)||W<=2*M||H<=2*M||K<0||M<0||![W,H,K,M].every(v=>Math.round(v*100)===v*100))throw Error('Dimensões da chapa, refilo ou serra inválidas.');
  const groups=new Map(),unplaced=[];
  for(const p of parts){
   const thick=Number(p.thickness),count=Number(p.qty);
@@ -16,7 +16,7 @@ export function planCutting(parts,{sheetWidth=2750,sheetHeight=1850,kerf=3,margi
   items.sort((a,b)=>Math.max(b.width,b.height)-Math.max(a.width,a.height)||b.width*b.height-a.width*a.height);
   const local=[];
   for(const item of items){
-   if(!(item.width>0&&item.height>0)){unplaced.push({...item,reason:'Dimensões inválidas'});continue}
+   if(!(item.width>0&&item.height>0&&Number.isFinite(item.width)&&Number.isFinite(item.height))){unplaced.push({...item,reason:'Dimensões inválidas'});continue}
    let best=null;
    for(const sheet of local)for(let i=0;i<sheet.free.length;i++){
     const space=sheet.free[i];
@@ -45,6 +45,24 @@ export function planCutting(parts,{sheetWidth=2750,sheetHeight=1850,kerf=3,margi
    if(remH>0)sheet.free.push({x:space.x,y:space.y+h+K,w,h:remH});
   }
   sheets.push(...local);
+ }
+ // Validação geométrica: limites, precisão das medidas e não sobreposição,
+ // com espaço mínimo da serra entre todas as peças.
+ const eps=.00001;
+ for(const sheet of sheets){
+  for(let i=0;i<sheet.pieces.length;i++){
+   const a=sheet.pieces[i];
+   if(a.x<M-eps||a.y<M-eps||a.x+a.w>W-M+eps||a.y+a.h>H-M+eps)
+    throw Error('Plano inválido: peça fora da área útil ('+a.name+').');
+   if(Math.abs(a.w-(a.rotated?a.height:a.width))>eps||Math.abs(a.h-(a.rotated?a.width:a.height))>eps)
+    throw Error('Plano inválido: medida de peça alterada ('+a.name+').');
+   if(grainLocked&&a.rotated)throw Error('Plano inválido: veio invertido.');
+   for(let j=0;j<i;j++){
+    const b=sheet.pieces[j];
+    if(a.x<b.x+b.w+K-eps&&b.x<a.x+a.w+K-eps&&a.y<b.y+b.h+K-eps&&b.y<a.y+a.h+K-eps)
+     throw Error('Plano inválido: sobreposição ou distância de serra insuficiente.');
+   }
+  }
  }
  return {sheets,unplaced,byThickness:[...new Set(sheets.map(s=>s.thickness))].map(thickness=>({thickness,quantity:sheets.filter(s=>s.thickness===thickness).length})),grainLocked,kerf:K,margin:M};
 }
