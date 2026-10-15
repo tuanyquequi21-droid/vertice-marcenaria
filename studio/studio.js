@@ -53,7 +53,7 @@ function detailBox(parent,x,y,z,w,h,d,mat){
  mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;
  mesh.userData.decorative=true;parent.add(mesh);return mesh;
 }
-function addFrontDetails(parent,front,kind='door'){
+function addFrontDetails(parent,front,kind='door',handleType='bar'){
  const bounds=new THREE.Vector3();front.geometry.computeBoundingBox();front.geometry.boundingBox.getSize(bounds);
  const width=bounds.x,height=bounds.y,thick=bounds.z;
  const frontZ=thick/2+.0018;
@@ -62,6 +62,14 @@ function addFrontDetails(parent,front,kind='door'){
  detailBox(front,width/2-edge/2,0,frontZ,edge,height,edge,trimMaterial);
  detailBox(front,0,-height/2+edge/2,frontZ,width,edge,edge,trimMaterial);
  detailBox(front,0,height/2-edge/2,frontZ,width,edge,edge,trimMaterial);
+ if(handleType==='none')return;
+ if(handleType==='angle45'){
+  // Cava 45° visual: friso superior, sem simular usinagem estrutural.
+  detailBox(front,0,height/2-.012,frontZ+.002,Math.max(.06,width-.025),.006,.005,trimMaterial);return;
+ }
+ if(handleType==='profile'){
+  detailBox(front,0,height/2-.009,frontZ+.006,Math.max(.06,width-.018),.014,.012,hardwareMaterial);return;
+ }
  if(width>.14&&height>.11){
   const horizontal=kind==='drawer'||height<.24;
   const barLength=Math.min(horizontal?width*.38:height*.22,.17);
@@ -121,11 +129,11 @@ function draw(p){presentationPreview=false;presentationGroup.visible=false;group
   const y=stacked?DH/2-PH/2+(i+.5)*PH/doors:DH/2;
   const z=D/2+.012+(type==='sliding'?(i%2)*(.012+T):0);
   addBox(x,y,z,panelW,panelH,T);
-  const mesh=group.children[group.children.length-1];mesh.userData.partType='door';if(componentColorsActive)mesh.material=doorMaterial;fronts.push(mesh);addFrontDetails(group,mesh,'door');
+  const mesh=group.children[group.children.length-1];mesh.userData.partType='door';if(componentColorsActive)mesh.material=doorMaterial;fronts.push(mesh);addFrontDetails(group,mesh,'door',p.layout.handleType);
   doorMeta.push({mesh,type,index:i,closed:{x,y,z},width:panelW,height:panelH,swing:doors===2&&type==='hinged'?(i===0?'left':'right'):p.layout.doorSwing});
  }
  const bayW=p.layout.bayWidth/1000,bayX=-W/2+T+(p.layout.drawerBay-.5)*bayW+(p.layout.drawerBay-1)*T;
- for(let i=0;i<drawers;i++){addBox(bayX,-H/2+(i+.5)*DH/drawers,D/2+.012,bayW-.006,DH/drawers-.004,T);group.children[group.children.length-1].userData.partType='drawer';if(componentColorsActive)group.children[group.children.length-1].material=drawerMaterial;fronts.push(group.children[group.children.length-1]);addFrontDetails(group,group.children[group.children.length-1],'drawer')}
+ for(let i=0;i<drawers;i++){addBox(bayX,-H/2+(i+.5)*DH/drawers,D/2+.012,bayW-.006,DH/drawers-.004,T);group.children[group.children.length-1].userData.partType='drawer';if(componentColorsActive)group.children[group.children.length-1].material=drawerMaterial;fronts.push(group.children[group.children.length-1]);addFrontDetails(group,group.children[group.children.length-1],'drawer',p.layout.handleType)}
  for(let i=0;i<drawers;i++){const y=-H/2+(i+.5)*DH/drawers,boxH=Math.min(.16,DH/drawers-.05),boxW=(p.layout.bayWidth-2*t-26)/1000,boxD=(d-60)/1000;addBox(bayX-boxW/2,y,0,T,boxH,boxD);addBox(bayX+boxW/2,y,0,T,boxH,boxD);addBox(bayX,y,-boxD/2,boxW,boxH,T);addBox(bayX,y,boxD/2,boxW,boxH,T);addBox(bayX,y-boxH/2,0,boxW,.006,boxD)}
  addCabinetBase(group,W,H,D,p.layout.baseType,T);
  if(componentColorsActive)for(const mesh of group.children)if(mesh.userData.partType==='body')mesh.material=bodyMaterial;
@@ -397,9 +405,9 @@ function drawPresentation(){
   const div=Number(params.dividers||0);
   for(let j=1;j<=div;j++)presentationBox(g,-w/2+t+j*p.layout.bayWidth/1000+(j-.5)*t,0,0,t,h-2*t,d-.006);
   const doors=Number(params.doors||0),dh=p.layout.drawerHeight/1000,ph=p.layout.doorHeight/1000,stack=p.layout.doorType==='flap-down'&&p.layout.flapLayout!=='horizontal';
-  for(let j=0;j<doors;j++){presentationBox(g,stack?0:-w/2+(j+.5)*w/doors,stack?dh/2-ph/2+(j+.5)*ph/doors:dh/2,d/2+.012,stack?w-.006:w/doors-.006,stack?ph/doors-.004:ph-.004,t);const front=g.children[g.children.length-1];front.userData.partType='door';if(componentColorsActive)front.material=doorMaterial;addFrontDetails(g,front,'door');}
+  for(let j=0;j<doors;j++){presentationBox(g,stack?0:-w/2+(j+.5)*w/doors,stack?dh/2-ph/2+(j+.5)*ph/doors:dh/2,d/2+.012,stack?w-.006:w/doors-.006,stack?ph/doors-.004:ph-.004,t);const front=g.children[g.children.length-1];front.userData.partType='door';if(componentColorsActive)front.material=doorMaterial;addFrontDetails(g,front,'door',p.layout.handleType);}
   const drawers=Number(params.drawers||0),bayX=-w/2+t+(p.layout.drawerBay-.5)*p.layout.bayWidth/1000+(p.layout.drawerBay-1)*t;
-  for(let j=0;j<drawers;j++){presentationBox(g,bayX,-h/2+(j+.5)*dh/drawers,d/2+.012,p.layout.bayWidth/1000-.006,dh/drawers-.004,t);const front=g.children[g.children.length-1];front.userData.partType='drawer';if(componentColorsActive)front.material=drawerMaterial;addFrontDetails(g,front,'drawer');}
+  for(let j=0;j<drawers;j++){presentationBox(g,bayX,-h/2+(j+.5)*dh/drawers,d/2+.012,p.layout.bayWidth/1000-.006,dh/drawers-.004,t);const front=g.children[g.children.length-1];front.userData.partType='drawer';if(componentColorsActive)front.material=drawerMaterial;addFrontDetails(g,front,'drawer',p.layout.handleType);}
   addCabinetBase(g,w,h,d,p.layout.baseType,t);
   if(params._colors){for(const mesh of g.children){if(mesh.userData.decorative)continue;const key=mesh.userData.partType==='door'?'doors':mesh.userData.partType==='drawer'?'drawers':'body';if(/^#[0-9a-fA-F]{6}$/.test(params._colors[key]||'')){mesh.material=mesh.material.clone();mesh.material.map=null;mesh.material.color.set(params._colors[key]);}}}
  }
