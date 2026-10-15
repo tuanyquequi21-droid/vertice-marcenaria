@@ -40,7 +40,19 @@ export function planCutting(parts,{sheetWidth=2750,sheetHeight=1850,kerf=3,margi
      if(w<=W-2*M&&h<=H-2*M){best={sheet,i:0,w,h,rotated,score:0};break}
     }
    }
-   if(!best){unplaced.push({...item,reason:'Peça maior que a área útil da chapa'});if(local.at(-1).pieces.length===0)local.pop();continue}
+   if(!best){
+    const freeW=W-2*M,freeH=H-2*M;
+    const possibleWithoutGrain=[false,true].some(rotated=>{
+     const iw=rotated?item.height:item.width,ih=rotated?item.width:item.height;
+     return iw<=freeW&&ih<=freeH;
+    });
+    const reason=grainLocked&&possibleWithoutGrain
+     ?'Peça só cabe com orientação diferente do veio configurado'
+     :'Peça excede a área útil de uma chapa inteira ('+freeW+' × '+freeH+' mm)';
+    unplaced.push({...item,reason});
+    if(local.at(-1)?.pieces.length===0)local.pop();
+    continue;
+   }
    const {sheet,i,w,h,rotated}=best,space=sheet.free.splice(i,1)[0];
    sheet.pieces.push({...item,x:space.x,y:space.y,w,h,rotated});
    // Corte guilhotinado: divide o espaço restante em duas áreas sem sobreposição.
