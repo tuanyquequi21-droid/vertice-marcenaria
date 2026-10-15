@@ -476,10 +476,15 @@ const sketchupStatus=document.getElementById('sketchup-status');
 document.getElementById('import-sketchup').addEventListener('change',async e=>{
  const file=e.target.files?.[0];if(!file)return;
  try{
-  if(!/\\.glb$/i.test(file.name))throw Error('Exporte o modelo do SketchUp como GLB.');
+  if(/\\.(skb|skp)$/i.test(file.name)){
+   const kind=/\\.skb$/i.test(file.name)?'backup SKB':'projeto SKP';
+   sketchupStatus.textContent='Arquivo '+kind+' reconhecido: '+file.name+'. Este Studio ainda não consegue ler a geometria do formato SketchUp. Abra o arquivo no SketchUp (para SKB, use uma cópia com extensão SKP) e exporte em GLB. Depois importe o GLB aqui. Nenhuma peça ou medida foi importada.';
+   return;
+  }
+  if(!/\\.glb$/i.test(file.name))throw Error('Formato não suportado. Selecione SKB, SKP ou GLB.');
   if(file.size>40*1024*1024)throw Error('Arquivo acima de 40 MB. Reduza o modelo.');
   sketchupStatus.textContent='Carregando modelo 3D...';
-  const {GLTFLoader}=await import('https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/loaders/GLTFLoader.js/+esm');
+  const {GLTFLoader}=await import('https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/loaders/GLTFLoader.js');
   const loaded=await new GLTFLoader().parseAsync(await file.arrayBuffer(),'');
   while(importedSketchupGroup.children.length)importedSketchupGroup.remove(importedSketchupGroup.children[0]);
   importedSketchupGroup.add(loaded.scene);
