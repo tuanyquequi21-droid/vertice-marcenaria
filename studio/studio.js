@@ -378,7 +378,7 @@ function renderCutPlan(){
  summary.replaceChildren();host.replaceChildren();
  try{
   const plan=getCutPlan(),count=plan.sheets.length;
-  for(const [label,value] of [['Chapas',String(count)],...plan.byThickness.map(g=>[g.thickness+' mm',g.quantity+' chapa(s)']),['Peças sem encaixe',String(plan.unplaced.length)]]){
+  for(const [label,value] of [['Chapas',String(count)],...plan.byThickness.map(g=>[g.thickness+' mm',g.quantity+' chapa(s)']),['Peças que não cabem em chapa nova',String(plan.unplaced.length)]]){
    const badge=document.createElement('span');badge.textContent=label+': '+value;summary.append(badge);
   }
   for(const [index,sheet] of plan.sheets.entries()){
@@ -406,7 +406,7 @@ function renderCutPlan(){
   }
   if(plan.unplaced.length){
    const warning=document.createElement('p');warning.className='error';
-   warning.textContent='ATENÇÃO: PLANO INCOMPLETO — '+plan.unplaced.length+' peça(s) ficaram de fora. NÃO UTILIZE PARA CORTE. Confira as dimensões e o sentido do veio: '+plan.unplaced.slice(0,5).map(p=>p.name+' ('+p.width+'×'+p.height+')').join(', ');
+   warning.textContent='ATENÇÃO: '+plan.unplaced.length+' peça(s) não cabem nem em uma chapa NOVA com as regras atuais. O sistema já abriu novas chapas para todas as peças que cabem. NÃO UTILIZE PARA CORTE até resolver: '+plan.unplaced.map(p=>p.name+' ('+p.width+' × '+p.height+' mm; '+p.thickness+' mm): '+p.reason).join(' | ');
    host.prepend(warning);
   }
   if(!plan.sheets.length&&!plan.unplaced.length)summary.textContent='Nenhuma peça para distribuir.';
