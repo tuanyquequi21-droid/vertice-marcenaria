@@ -59,11 +59,12 @@ main{grid-template-columns:minmax(315px,355px) minmax(0,1fr);gap:12px;padding:12
  window.addEventListener('error',e=>{if(!host.querySelector('canvas'))showFallback(e.message);});
  window.addEventListener('unhandledrejection',e=>{if(!host.querySelector('canvas'))showFallback(e.reason?.message||'Falha ao carregar módulo 3D');});
  setTimeout(()=>{if(!host.querySelector('canvas'))showFallback('Verifique a conexão ou o bloqueio de scripts externos no navegador.')},2500);
+ const observer=new MutationObserver(()=>{if(host.querySelector('canvas')){fallback?.remove();fallback=null;observer.disconnect()}});observer.observe(host,{childList:true,subtree:true});
  form.addEventListener('change',()=>{if(fallback)showFallback('Prévia 2D disponível enquanto o 3D não inicia.')});
 })();
 </script>
 <script type="module">
-import('./studio.js?v=20261015-3d-recovery').catch(err=>{
+import('./studio.js?v=20261015-viewer-isolation').catch(err=>{
  const host=document.getElementById('scene');
  const info=document.createElement('div');
  info.style.cssText='background:#fff1db;color:#4c3413;padding:12px;margin:10px;border-radius:6px;font-size:13px;white-space:pre-wrap';
