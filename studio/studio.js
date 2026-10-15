@@ -388,7 +388,7 @@ function renderCutPlan(){
   }
   for(const [index,sheet] of plan.sheets.entries()){
    const card=document.createElement('article');card.className='cut-sheet';
-   const title=document.createElement('h4');title.textContent='Chapa '+(index+1)+' · '+sheet.thickness+' mm · '+sheet.width+' × '+sheet.height+' mm';card.append(title);
+   const title=document.createElement('h4');title.textContent=(sheet.thickness===6?'FUNDO · MDF 6 mm · ':'ESTRUTURA · MDF '+sheet.thickness+' mm · ')+'Chapa '+(index+1)+' · '+sheet.width+' × '+sheet.height+' mm';card.append(title);
    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
    svg.setAttribute('viewBox','0 0 '+sheet.width+' '+sheet.height);svg.setAttribute('role','img');
    svg.setAttribute('aria-label','Distribuição de '+sheet.pieces.length+' peças na chapa '+(index+1));
@@ -396,7 +396,7 @@ function renderCutPlan(){
    sheet.pieces.forEach((p,i)=>{
     const rect=document.createElementNS(ns,'rect');
     rect.setAttribute('x',p.x);rect.setAttribute('y',p.y);rect.setAttribute('width',p.w);rect.setAttribute('height',p.h);
-    rect.setAttribute('fill',['#c4d4dc','#e2cda8','#bdd3c1','#d9c5d9','#c9cbd9'][i%5]);
+    rect.setAttribute('fill',sheet.thickness===6?'#ffffff':['#c4d4dc','#e2cda8','#bdd3c1','#d9c5d9','#c9cbd9'][i%5]);
     rect.setAttribute('stroke','#58636c');rect.setAttribute('stroke-width','3');
     const name=p.name+' · '+Math.round(p.width)+' × '+Math.round(p.height)+' mm'+(p.rotated?' · girada':'');
     const tooltip=document.createElementNS(ns,'title');tooltip.textContent=name;rect.append(tooltip);svg.append(rect);
@@ -417,6 +417,11 @@ function renderCutPlan(){
   if(!plan.sheets.length&&!plan.unplaced.length)summary.textContent='Nenhuma peça para distribuir.';
  }catch(e){summary.textContent='Não foi possível calcular o plano: '+e.message}
 }
+document.getElementById('back-type').addEventListener('change',()=>{
+ const color=document.getElementById('back-color');
+ color.disabled=document.getElementById('back-type').value==='none';
+});
+document.getElementById('back-color').addEventListener('change',()=>document.getElementById('form').requestSubmit());
 document.getElementById('calculate-cut').addEventListener('click',renderCutPlan);
 document.getElementById('jump-cut').addEventListener('click',()=>{document.getElementById('materials-panel').scrollIntoView({behavior:'smooth',block:'start'});});
 document.getElementById('print-cut').addEventListener('click',()=>{renderCutPlan();window.print()});
