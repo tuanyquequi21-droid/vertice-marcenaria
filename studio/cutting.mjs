@@ -11,6 +11,10 @@ export function planCutting(parts,{sheetWidth=2750,sheetHeight=1850,kerf=3,margi
   if(!groups.has(thick))groups.set(thick,[]);
   for(let i=0;i<count;i++)groups.get(thick).push({name:p.name,width:Number(p.width),height:Number(p.height),thickness:thick});
  }
+ // MDF com veio no eixo de 2750 mm: o lado maior da peça acompanha o lado maior da chapa.
+ // Rotação de 90° para colocar uma peça alta (ex.: lateral 550 × 2000) na chapa 2750 × 1850.
+ // Sem travamento, ambas as orientações são testadas.
+ const orientations=item=>grainLocked?[item.height>item.width]:[false,true];
  const sheets=[];
  for(const [thickness,items] of groups){
   items.sort((a,b)=>Math.max(b.width,b.height)-Math.max(a.width,a.height)||b.width*b.height-a.width*a.height);
@@ -20,7 +24,7 @@ export function planCutting(parts,{sheetWidth=2750,sheetHeight=1850,kerf=3,margi
    let best=null;
    for(const sheet of local)for(let i=0;i<sheet.free.length;i++){
     const space=sheet.free[i];
-    for(const rotated of (grainLocked?[false]:[false,true])){
+    for(const rotated of orientations(item)){
      const w=rotated?item.height:item.width,h=rotated?item.width:item.height;
      if(w<=space.w+.00001&&h<=space.h+.00001){
       const score=(space.w-w)*(space.h-h);
@@ -31,7 +35,7 @@ export function planCutting(parts,{sheetWidth=2750,sheetHeight=1850,kerf=3,margi
    if(!best){
     const sheet={thickness,width:W,height:H,free:[{x:M,y:M,w:W-2*M,h:H-2*M}],pieces:[]};
     local.push(sheet);
-    for(const rotated of (grainLocked?[false]:[false,true])){
+    for(const rotated of orientations(item)){
      const w=rotated?item.height:item.width,h=rotated?item.width:item.height;
      if(w<=W-2*M&&h<=H-2*M){best={sheet,i:0,w,h,rotated,score:0};break}
     }
@@ -56,7 +60,7 @@ export function planCutting(parts,{sheetWidth=2750,sheetHeight=1850,kerf=3,margi
     throw Error('Plano inválido: peça fora da área útil ('+a.name+').');
    if(Math.abs(a.w-(a.rotated?a.height:a.width))>eps||Math.abs(a.h-(a.rotated?a.width:a.height))>eps)
     throw Error('Plano inválido: medida de peça alterada ('+a.name+').');
-   if(grainLocked&&a.rotated)throw Error('Plano inválido: veio invertido.');
+   if(grainLocked&&a.rotated!==(a.height>a.width))throw Error('Plano inválido: sentido do veio incorreto.');
    for(let j=0;j<i;j++){
     const b=sheet.pieces[j];
     if(a.x<b.x+b.w+K-eps&&b.x<a.x+a.w+K-eps&&a.y<b.y+b.h+K-eps&&b.y<a.y+a.h+K-eps)
