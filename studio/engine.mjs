@@ -50,6 +50,8 @@ export function calculateCabinet(input={}){
  if(drawers>0&&drawerHeight/drawers<120)throw new RangeError('Altura insuficiente para a quantidade de gavetas');
  if(w<=4*t+26||h<=2*t||depth<=Math.max(bt,80))throw new RangeError('Dimensões insuficientes para a espessura');
  if(!Number.isFinite(waste)||waste<0||waste>100)throw new RangeError('Perda inválida');
+ const handleType=String(d.handleType??'bar');
+ if(!['bar','profile','angle45','none'].includes(handleType))throw new RangeError('Tipo de puxador inválido');
  const baseType=String(d.baseType??'plinth');
  if(!['plinth','feet','none'].includes(baseType))throw new RangeError('Tipo de base inválido');
  const plinthHeight=100,plinthDepth=Math.max(80,depth-60);
@@ -77,5 +79,5 @@ export function calculateCabinet(input={}){
  const edgeM=parts.reduce((sum,p)=>sum+p.qty*p.edgeMm/1000,0);
  const price=positive(d.pricePerM2,'Preço por m²'),edgePrice=Number(d.edgePricePerM);
  if(!Number.isFinite(edgePrice)||edgePrice<0)throw new RangeError('Preço da fita inválido');
- return {hardware:calculateHardware(d),dimensions:{width:w,height:h,depth},layout:{drawerHeight,doorHeight,bayWidth,drawerBay,bays,doorType,doorSwing,flapLayout,baseType,baseSupports,plinthHeight},parts,areaM2,edgeM,estimatedMaterialCost:areaM2*(1+waste/100)*price+edgeM*edgePrice,assumptions:['Medidas em mm','Ferragens calculadas apenas em quantidades; modelos, cargas e compatibilidade exigem revisão técnica','Caixas de gaveta são estimativas: conferir corrediças, folgas e montagem antes da fabricação']};
+ return {hardware:calculateHardware(d),dimensions:{width:w,height:h,depth},layout:{drawerHeight,doorHeight,bayWidth,drawerBay,bays,doorType,doorSwing,flapLayout,baseType,baseSupports,plinthHeight,handleType},parts,areaM2,edgeM,estimatedMaterialCost:areaM2*(1+waste/100)*price+edgeM*edgePrice,assumptions:['Medidas em mm','Ferragens calculadas apenas em quantidades; modelos, cargas e compatibilidade exigem revisão técnica','Caixas de gaveta são estimativas: conferir corrediças, folgas e montagem antes da fabricação']};
 }
