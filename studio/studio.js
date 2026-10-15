@@ -406,8 +406,10 @@ transferButton?.addEventListener('click',()=>{
    const thickness=Number(part.thickness),area=part.qty*part.width*part.height/1e6;
    byThickness.set(thickness,(byThickness.get(thickness)||0)+area);
   }
-  const sheets=[...byThickness].map(([thickness,areaM2])=>({thickness,areaM2,quantity:Math.ceil(areaM2*(1+waste/100)/(sheetW*sheetH/1e6)),width:sheetW,height:sheetH}));
-  const payload={schemaVersion:1,source:'vertice-studio',kind:'quote-material-estimate',createdAt:new Date().toISOString(),parts:result.parts,sheets,hardware:result.hardware,edgeMeters:result.edgeM,warning:'Quantitativos preliminares: confirmar ferragens, carga, medidas, compatibilidade e plano de corte antes da compra.'};
+  const cutting=getCutPlan();
+  if(cutting.unplaced.length)throw new Error('Há peças que não cabem na chapa; ajuste o plano antes de transferir ao Gestão.');
+  const sheets=cutting.byThickness.map(({thickness,quantity})=>({thickness,areaM2:byThickness.get(thickness)||0,quantity,width:sheetW,height:sheetH}));
+  const payload={schemaVersion:1,source:'vertice-studio',kind:'quote-material-estimate',createdAt:new Date().toISOString(),parts:result.parts,sheets,hardware:result.hardware,edgeMeters:result.edgeM,warning:'Plano preliminar por guilhotina: confirmar sentido do veio, serra, refilo, ferragens, medidas e plano CNC antes da fabricação.'};
   localStorage.setItem('vertice:studio:quote-transfer:v1',JSON.stringify(payload));
   report('Estimativa enviada. Abrindo o Gestão para selecionar um orçamento...');
   window.location.assign('../index.html#studio-import');
