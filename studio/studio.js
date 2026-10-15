@@ -407,8 +407,39 @@ function renderCutPlan(){
      const tip=document.createElementNS(ns,'title');tip.textContent=name;label.append(tip);svg.append(label);
     }
    });
+   // Cotas externas por peça, em milímetros, e indicação de divisão opcional.
+   const makeSvg=(tag,attrs,content)=>{
+    const node=document.createElementNS(ns,tag);
+    for(const [k,v] of Object.entries(attrs))node.setAttribute(k,String(v));
+    if(content!==undefined)node.textContent=String(content);
+    svg.append(node);return node;
+   };
+   for(const p of sheet.pieces){
+    const top=Math.max(12,p.y-16),left=Math.max(12,p.x-16);
+    makeSvg('line',{x1:p.x,y1:top,x2:p.x+p.w,y2:top,stroke:'#304658','stroke-width':2});
+    makeSvg('text',{x:p.x+p.w/2,y:Math.max(19,p.y-23),'text-anchor':'middle','font-size':30,fill:'#304658'},p.w);
+    makeSvg('line',{x1:left,y1:p.y,x2:left,y2:p.y+p.h,stroke:'#304658','stroke-width':2});
+    const cy=p.y+p.h/2,tx=Math.max(22,p.x-22);
+    makeSvg('text',{x:tx,y:cy,'text-anchor':'middle','font-size':30,fill:'#304658',transform:'rotate(-90 '+tx+' '+cy+')'},p.h);
+   }
+   if(sheet.splitSuggestion){
+    const split=sheet.splitSuggestion;
+    const line=makeSvg('line',{x1:split.axis==='vertical'?split.position:0,y1:split.axis==='horizontal'?split.position:0,
+     x2:split.axis==='vertical'?split.position:sheet.width,y2:split.axis==='horizontal'?split.position:sheet.height,
+     stroke:'#e31e24','stroke-width':9,'stroke-dasharray':'28 16'});
+    const tip=document.createElementNS(ns,'title');tip.textContent='Possível divisão da chapa em faixa livre — confirmar sequência na máquina';line.append(tip);
+   }
+   const checklist=document.createElement('details');
+   checklist.className='cut-checklist';
+   const summaryLine=document.createElement('summary');summaryLine.textContent='Conferência das peças cortadas ('+sheet.pieces.length+')';checklist.append(summaryLine);
+   sheet.pieces.forEach((p,i)=>{
+    const label=document.createElement('label');label.style.cssText='display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px';
+    const tick=document.createElement('input');tick.type='checkbox';tick.style.width='auto';
+    const span=document.createElement('span');span.textContent=(i+1)+'. '+p.name+' — '+p.width+' × '+p.height+' mm';
+    label.append(tick,span);checklist.append(label);
+   });
    card.append(svg);
-   const detail=document.createElement('p');detail.className='hint';detail.textContent=sheet.pieces.length+' peças · '+(100*sheet.pieces.reduce((s,p)=>s+p.w*p.h,0)/(sheet.width*sheet.height)).toFixed(1)+'% de aproveitamento geométrico';card.append(detail);host.append(card);
+   const detail=document.createElement('p');detail.className='hint';detail.textContent=sheet.pieces.length+' peças · '+(100*sheet.pieces.reduce((s,p)=>s+p.w*p.h,0)/(sheet.width*sheet.height)).toFixed(1)+'% de aproveitamento geométrico';card.append(detail);card.append(checklist);host.append(card);
   }
   if(plan.unplaced.length){
    const warning=document.createElement('p');warning.className='error';
