@@ -42,6 +42,51 @@ let componentColorsActive=false;
 function componentColors(){return {body:'#'+bodyMaterial.color.getHexString(),doors:'#'+doorMaterial.color.getHexString(),drawers:'#'+drawerMaterial.color.getHexString()}}
 function applyComponentColors(colors){for(const [key,mat] of [['body',bodyMaterial],['doors',doorMaterial],['drawers',drawerMaterial]]){const value=colors?.[key];if(/^#[0-9a-fA-F]{6}$/.test(value||'')){mat.color.set(value);document.getElementById('cabinet-'+(key==='doors'?'door':key==='drawers'?'drawer':'body')+'-color').value=value}}componentColorsActive=true;for(const mesh of group.children){if(mesh.userData.partType)mesh.material=mesh.userData.partType==='door'?doorMaterial:mesh.userData.partType==='drawer'?drawerMaterial:bodyMaterial}for(const g of presentationGroup.children){g.traverse(o=>{if(o.isMesh&&o.userData.partType)o.material=o.userData.partType==='door'?doorMaterial:o.userData.partType==='drawer'?drawerMaterial:bodyMaterial})}render()}
 
+// Detalhes visuais do móvel: puxadores, fita de borda e base recuada.
+// Elementos apenas gráficos: não alteram lista de corte nem orçamento.
+const trimMaterial=new THREE.MeshStandardMaterial({color:0x9d8d78,roughness:.52,metalness:.08});
+const hardwareMaterial=new THREE.MeshStandardMaterial({color:0xa8a8a6,metalness:.72,roughness:.27});
+const shadowGapMaterial=new THREE.MeshStandardMaterial({color:0x3e3933,roughness:.95});
+function detailBox(parent,x,y,z,w,h,d,mat){
+ if(Math.min(w,h,d)<=0)return null;
+ const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+ mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;
+ mesh.userData.decorative=true;parent.add(mesh);return mesh;
+}
+function addFrontDetails(parent,front,kind='door'){
+ const {x,y,z}=front.position;
+ const bounds=new THREE.Vector3();front.geometry.computeBoundingBox();front.geometry.boundingBox.getSize(bounds);
+ const width=bounds.x,height=bounds.y,thick=bounds.z;
+ const frontZ=z+thick/2+.0018;
+ // Perfil estreito da fita na face frontal, visível em luz rasante.
+ const edge=.0014;
+ detailBox(parent,x-width/2+edge/2,y,frontZ,edge,height,edge,trimMaterial);
+ detailBox(parent,x+width/2-edge/2,y,frontZ,edge,height,edge,trimMaterial);
+ detailBox(parent,x,y-height/2+edge/2,frontZ,width,edge,edge,trimMaterial);
+ detailBox(parent,x,y+height/2-edge/2,frontZ,width,edge,edge,trimMaterial);
+ // Puxador discreto tipo barra; o comprimento respeita o tamanho da frente.
+ if(width>.14&&height>.11){
+  const horizontal=kind==='drawer'||height<.24;
+  const barLength=Math.min(horizontal?width*.38:height*.22,.17);
+  const offset=Math.min(.065,width*.18);
+  const hx=horizontal?x:x+width/2-offset;
+  const hy=horizontal?y+height/2-Math.min(.10,height*.17):y;
+  const bw=horizontal?barLength:.009,bh=horizontal?.009:barLength;
+  detailBox(parent,hx,hy,frontZ+.018,bw,bh,.012,hardwareMaterial);
+  const pegOffset=barLength*.30;
+  if(horizontal){
+   detailBox(parent,hx-pegOffset,hy,frontZ+.010,.007,.007,.021,hardwareMaterial);
+   detailBox(parent,hx+pegOffset,hy,frontZ+.010,.007,.007,.021,hardwareMaterial);
+  }else{
+   detailBox(parent,hx,hy-pegOffset,frontZ+.010,.007,.007,.021,hardwareMaterial);
+   detailBox(parent,hx,hy+pegOffset,frontZ+.010,.007,.007,.021,hardwareMaterial);
+  }
+ }
+}
+function addCabinetBase(parent,w,h,d){
+ // Rodapé recuado de 7 cm, separado da caixa.
+ if(h>.5&&w>.28&&d>.22)detailBox(parent,0,-h/2+.04,d*.16,Math.max(.1,w-.065),.07,.025,shadowGapMaterial);
+}
 function addBox(x,y,z,w,h,d){const mesh=new THREE.Mesh(cabinetGeometry(w,h,d),material);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.partType='body';group.add(mesh)}
 function draw(p){presentationPreview=false;presentationGroup.visible=false;group.visible=true;fronts.length=0;doorMeta=[];doorsOpened=false;while(group.children.length){const mesh=group.children[0];group.remove(mesh);void 0}
  const {width:w,height:h,depth:d}=p.dimensions;const t=Number(document.querySelector('[name=thickness]').value),s=Number(document.querySelector('[name=shelves]').value),doors=Number(document.querySelector('[name=doors]').value);
@@ -60,12 +105,13 @@ function draw(p){presentationPreview=false;presentationGroup.visible=false;group
   const y=stacked?DH/2-PH/2+(i+.5)*PH/doors:DH/2;
   const z=D/2+.012+(type==='sliding'?(i%2)*(.012+T):0);
   addBox(x,y,z,panelW,panelH,T);
-  const mesh=group.children[group.children.length-1];mesh.userData.partType='door';if(componentColorsActive)mesh.material=doorMaterial;fronts.push(mesh);
+  const mesh=group.children[group.children.length-1];mesh.userData.partType='door';if(componentColorsActive)mesh.material=doorMaterial;fronts.push(mesh);addFrontDetails(group,mesh,'door');
   doorMeta.push({mesh,type,index:i,closed:{x,y,z},width:panelW,height:panelH,swing:doors===2&&type==='hinged'?(i===0?'left':'right'):p.layout.doorSwing});
  }
  const bayW=p.layout.bayWidth/1000,bayX=-W/2+T+(p.layout.drawerBay-.5)*bayW+(p.layout.drawerBay-1)*T;
- for(let i=0;i<drawers;i++){addBox(bayX,-H/2+(i+.5)*DH/drawers,D/2+.012,bayW-.006,DH/drawers-.004,T);group.children[group.children.length-1].userData.partType='drawer';if(componentColorsActive)group.children[group.children.length-1].material=drawerMaterial;fronts.push(group.children[group.children.length-1])}
+ for(let i=0;i<drawers;i++){addBox(bayX,-H/2+(i+.5)*DH/drawers,D/2+.012,bayW-.006,DH/drawers-.004,T);group.children[group.children.length-1].userData.partType='drawer';if(componentColorsActive)group.children[group.children.length-1].material=drawerMaterial;fronts.push(group.children[group.children.length-1]);addFrontDetails(group,group.children[group.children.length-1],'drawer')}
  for(let i=0;i<drawers;i++){const y=-H/2+(i+.5)*DH/drawers,boxH=Math.min(.16,DH/drawers-.05),boxW=(p.layout.bayWidth-2*t-26)/1000,boxD=(d-60)/1000;addBox(bayX-boxW/2,y,0,T,boxH,boxD);addBox(bayX+boxW/2,y,0,T,boxH,boxD);addBox(bayX,y,-boxD/2,boxW,boxH,T);addBox(bayX,y,boxD/2,boxW,boxH,T);addBox(bayX,y-boxH/2,0,boxW,.006,boxD)}
+ addCabinetBase(group,W,H,D);
  if(componentColorsActive)for(const mesh of group.children)if(mesh.userData.partType==='body')mesh.material=bodyMaterial;
  for(const front of fronts)front.visible=showFront;
  modelSize=Math.sqrt(W*W+H*H+D*D);modelWidth=W;modelHeight=H;modelDepth=D;resetCamera();document.getElementById('previewDoors').textContent='Simular abertura das portas';render();
@@ -335,9 +381,10 @@ function drawPresentation(){
   const div=Number(params.dividers||0);
   for(let j=1;j<=div;j++)presentationBox(g,-w/2+t+j*p.layout.bayWidth/1000+(j-.5)*t,0,0,t,h-2*t,d-.006);
   const doors=Number(params.doors||0),dh=p.layout.drawerHeight/1000,ph=p.layout.doorHeight/1000,stack=p.layout.doorType==='flap-down'&&p.layout.flapLayout!=='horizontal';
-  for(let j=0;j<doors;j++){presentationBox(g,stack?0:-w/2+(j+.5)*w/doors,stack?dh/2-ph/2+(j+.5)*ph/doors:dh/2,d/2+.012,stack?w-.006:w/doors-.006,stack?ph/doors-.004:ph-.004,t);const front=g.children[g.children.length-1];front.userData.partType='door';if(componentColorsActive)front.material=doorMaterial;}
+  for(let j=0;j<doors;j++){presentationBox(g,stack?0:-w/2+(j+.5)*w/doors,stack?dh/2-ph/2+(j+.5)*ph/doors:dh/2,d/2+.012,stack?w-.006:w/doors-.006,stack?ph/doors-.004:ph-.004,t);const front=g.children[g.children.length-1];front.userData.partType='door';if(componentColorsActive)front.material=doorMaterial;addFrontDetails(g,front,'door');}
   const drawers=Number(params.drawers||0),bayX=-w/2+t+(p.layout.drawerBay-.5)*p.layout.bayWidth/1000+(p.layout.drawerBay-1)*t;
-  for(let j=0;j<drawers;j++){presentationBox(g,bayX,-h/2+(j+.5)*dh/drawers,d/2+.012,p.layout.bayWidth/1000-.006,dh/drawers-.004,t);const front=g.children[g.children.length-1];front.userData.partType='drawer';if(componentColorsActive)front.material=drawerMaterial;}
+  for(let j=0;j<drawers;j++){presentationBox(g,bayX,-h/2+(j+.5)*dh/drawers,d/2+.012,p.layout.bayWidth/1000-.006,dh/drawers-.004,t);const front=g.children[g.children.length-1];front.userData.partType='drawer';if(componentColorsActive)front.material=drawerMaterial;addFrontDetails(g,front,'drawer');}
+  addCabinetBase(g,w,h,d);
   if(params._colors){for(const mesh of g.children){const key=mesh.userData.partType==='door'?'doors':mesh.userData.partType==='drawer'?'drawers':'body';if(/^#[0-9a-fA-F]{6}$/.test(params._colors[key]||'')){mesh.material=mesh.material.clone();mesh.material.map=null;mesh.material.color.set(params._colors[key]);}}}
  }
  presentationPreview=true;group.visible=false;presentationGroup.visible=true;
