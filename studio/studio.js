@@ -1,17 +1,49 @@
 import {calculateCabinet} from './engine.mjs';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
-const scene=new THREE.Scene();scene.background=new THREE.Color('#282828');
+
+// Bordas discretamente arredondadas simulam a quina real do MDF com fita de borda.
+const cabinetGeometryCache=new Map();
+function cabinetGeometry(w,h,d){
+ const key=[w,h,d].map(v=>v.toFixed(5)).join('|');
+ if(!cabinetGeometryCache.has(key)){
+  const radius=Math.min(.0015,Math.min(w,h,d)*.18);
+  cabinetGeometryCache.set(key,new THREE.BoxGeometry(w,h,d));
+ }
+ return cabinetGeometryCache.get(key);
+}
+// Textura microgranulada procedural para quebrar a aparência artificial de superfícies lisas.
+const grainCanvas=document.createElement('canvas');grainCanvas.width=128;grainCanvas.height=128;
+const grainContext=grainCanvas.getContext('2d'),grainPixels=grainContext.createImageData(128,128);
+for(let y=0;y<128;y++)for(let x=0;x<128;x++){
+ const i=(y*128+x)*4;
+ const v=192+Math.floor(14*Math.sin(y*.83+x*.12)+12*Math.sin(y*.17)+8*Math.sin(x*1.7+y*.21));
+ grainPixels.data[i]=grainPixels.data[i+1]=grainPixels.data[i+2]=Math.max(0,Math.min(255,v));
+ grainPixels.data[i+3]=255;
+}
+grainContext.putImageData(grainPixels,0,0);
+const microBump=new THREE.CanvasTexture(grainCanvas);microBump.wrapS=microBump.wrapT=THREE.RepeatWrapping;microBump.repeat.set(3,3);
+function finishSurface(mat){mat.bumpMap=microBump;mat.bumpScale=.00018;mat.roughness=.62;mat.metalness=0;mat.needsUpdate=true}
+const scene=new THREE.Scene();scene.background=new THREE.Color('#34383d');
 const camera=new THREE.PerspectiveCamera(40,1,.1,30);camera.position.set(2.8,2.1,3.8);camera.lookAt(0,0,0);
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.35;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2.5));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const host=document.getElementById('scene');host.appendChild(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xffffff,0x777777,2));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(2,4,5);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.left=-7;light.shadow.camera.right=7;light.shadow.camera.top=7;light.shadow.camera.bottom=-7;scene.add(light);
+scene.add(new THREE.HemisphereLight(0xffffff,0x777777,2));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(2,4,5);light.castShadow=true;light.shadow.mapSize.set(2048,2048);light.shadow.camera.left=-7;light.shadow.camera.right=7;light.shadow.camera.top=7;light.shadow.camera.bottom=-7;light.shadow.bias=-0.00015;light.shadow.normalBias=.025;scene.add(light);
+const fill=new THREE.DirectionalLight(0xc9d8ff,.65);fill.position.set(-4,2,-3);scene.add(fill);
 const group=new THREE.Group();scene.add(group);
 let project=null,rotation={x:0,y:0},drag=null,showFront=true,doorsOpened=false,doorMeta=[];
 let viewDistance=3,viewTarget=new THREE.Vector3(),viewAzimuth=.48,viewElevation=.22,modelSize=2,modelWidth=.8,modelHeight=2.2,modelDepth=.55;
 const fronts=[];
-const material=new THREE.MeshStandardMaterial({color:0xbda889,roughness:.75});
-function addBox(x,y,z,w,h,d){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh)}
-function draw(p){presentationPreview=false;presentationGroup.visible=false;group.visible=true;fronts.length=0;doorMeta=[];doorsOpened=false;while(group.children.length){const mesh=group.children[0];group.remove(mesh);mesh.geometry.dispose()}
+const material=new THREE.MeshStandardMaterial({color:0xbda889,roughness:.58,metalness:.015});
+const bodyMaterial=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.75});
+const doorMaterial=new THREE.MeshStandardMaterial({color:'#bda889',roughness:.75});
+const drawerMaterial=new THREE.MeshStandardMaterial({color:'#bda889',roughness:.75});
+for(const mat of [material,bodyMaterial,doorMaterial,drawerMaterial])finishSurface(mat);
+let componentColorsActive=false;
+function componentColors(){return {body:'#'+bodyMaterial.color.getHexString(),doors:'#'+doorMaterial.color.getHexString(),drawers:'#'+drawerMaterial.color.getHexString()}}
+function applyComponentColors(colors){for(const [key,mat] of [['body',bodyMaterial],['doors',doorMaterial],['drawers',drawerMaterial]]){const value=colors?.[key];if(/^#[0-9a-fA-F]{6}$/.test(value||'')){mat.color.set(value);document.getElementById('cabinet-'+(key==='doors'?'door':key==='drawers'?'drawer':'body')+'-color').value=value}}componentColorsActive=true;for(const mesh of group.children){if(mesh.userData.partType)mesh.material=mesh.userData.partType==='door'?doorMaterial:mesh.userData.partType==='drawer'?drawerMaterial:bodyMaterial}for(const g of presentationGroup.children){g.traverse(o=>{if(o.isMesh&&o.userData.partType)o.material=o.userData.partType==='door'?doorMaterial:o.userData.partType==='drawer'?drawerMaterial:bodyMaterial})}render()}
+
+function addBox(x,y,z,w,h,d){const mesh=new THREE.Mesh(cabinetGeometry(w,h,d),material);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.partType='body';group.add(mesh)}
+function draw(p){presentationPreview=false;presentationGroup.visible=false;group.visible=true;fronts.length=0;doorMeta=[];doorsOpened=false;while(group.children.length){const mesh=group.children[0];group.remove(mesh);void 0}
  const {width:w,height:h,depth:d}=p.dimensions;const t=Number(document.querySelector('[name=thickness]').value),s=Number(document.querySelector('[name=shelves]').value),doors=Number(document.querySelector('[name=doors]').value);
  const drawers=Number(document.querySelector('[name=drawers]').value||0),dividers=Number(document.querySelector('[name=dividers]').value||0);const W=w/1000,H=h/1000,D=d/1000,T=t/1000;addBox(-W/2+T/2,0,0,T,H,D);addBox(W/2-T/2,0,0,T,H,D);
  addBox(0,-H/2+T/2,0,W-2*T,T,D);addBox(0,H/2-T/2,0,W-2*T,T,D);
@@ -28,12 +60,13 @@ function draw(p){presentationPreview=false;presentationGroup.visible=false;group
   const y=stacked?DH/2-PH/2+(i+.5)*PH/doors:DH/2;
   const z=D/2+.012+(type==='sliding'?(i%2)*(.012+T):0);
   addBox(x,y,z,panelW,panelH,T);
-  const mesh=group.children[group.children.length-1];fronts.push(mesh);
+  const mesh=group.children[group.children.length-1];mesh.userData.partType='door';if(componentColorsActive)mesh.material=doorMaterial;fronts.push(mesh);
   doorMeta.push({mesh,type,index:i,closed:{x,y,z},width:panelW,height:panelH,swing:doors===2&&type==='hinged'?(i===0?'left':'right'):p.layout.doorSwing});
  }
  const bayW=p.layout.bayWidth/1000,bayX=-W/2+T+(p.layout.drawerBay-.5)*bayW+(p.layout.drawerBay-1)*T;
- for(let i=0;i<drawers;i++){addBox(bayX,-H/2+(i+.5)*DH/drawers,D/2+.012,bayW-.006,DH/drawers-.004,T);fronts.push(group.children[group.children.length-1])}
+ for(let i=0;i<drawers;i++){addBox(bayX,-H/2+(i+.5)*DH/drawers,D/2+.012,bayW-.006,DH/drawers-.004,T);group.children[group.children.length-1].userData.partType='drawer';if(componentColorsActive)group.children[group.children.length-1].material=drawerMaterial;fronts.push(group.children[group.children.length-1])}
  for(let i=0;i<drawers;i++){const y=-H/2+(i+.5)*DH/drawers,boxH=Math.min(.16,DH/drawers-.05),boxW=(p.layout.bayWidth-2*t-26)/1000,boxD=(d-60)/1000;addBox(bayX-boxW/2,y,0,T,boxH,boxD);addBox(bayX+boxW/2,y,0,T,boxH,boxD);addBox(bayX,y,-boxD/2,boxW,boxH,T);addBox(bayX,y,boxD/2,boxW,boxH,T);addBox(bayX,y-boxH/2,0,boxW,.006,boxD)}
+ if(componentColorsActive)for(const mesh of group.children)if(mesh.userData.partType==='body')mesh.material=bodyMaterial;
  for(const front of fronts)front.visible=showFront;
  modelSize=Math.sqrt(W*W+H*H+D*D);modelWidth=W;modelHeight=H;modelDepth=D;resetCamera();document.getElementById('previewDoors').textContent='Simular abertura das portas';render();
 }
@@ -83,7 +116,27 @@ function panCamera(dx,dy){
 }
 function render(){const width=host.clientWidth||500,height=host.clientHeight||450;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();renderer.render(scene,camera)}
 new ResizeObserver(render).observe(host);
-document.getElementById('form').addEventListener('submit',e=>{e.preventDefault();try{const data=Object.fromEntries(new FormData(e.target));const p=calculateCabinet(data);project={schemaVersion:1,kind:'cabinet',params:data};draw(p);document.getElementById('error').textContent='';document.getElementById('totals').textContent='Área: '+p.areaM2.toFixed(2)+' m² | Fita: '+p.edgeM.toFixed(2)+' m | Materiais estimados: '+p.estimatedMaterialCost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});document.getElementById('hardware').replaceChildren(...p.hardware.map(item=>{const tr=document.createElement('tr');for(const value of [item.label,item.quantity,item.unit]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}));document.getElementById('parts').replaceChildren(...p.parts.map(part=>{const tr=document.createElement('tr');for(const value of [part.name,part.qty,part.width.toFixed(1)+' × '+part.height.toFixed(1)+' × '+part.thickness]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}))}catch(err){document.getElementById('error').textContent=err.message}});
+function renderEdgeBanding(p){
+ const wasteInput=document.getElementById('edge-waste-percent');
+ const waste=Number(wasteInput?.value??10);
+ const percent=Number.isFinite(waste)?THREE.MathUtils.clamp(waste,0,100):10;
+ const total=p.edgeM*(1+percent/100);
+ const rate=Number(document.querySelector('[name=edgePricePerM]').value)||0;
+ const currency=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+ document.getElementById('edge-summary').textContent='Metragem calculada: '+p.edgeM.toFixed(2)+' m | Perda: '+percent+'% | Compra estimada: '+total.toFixed(2)+' m | Custo da fita com perda: '+currency(total*rate)+'.';
+ const rows=p.parts.filter(part=>part.edgeMm>0).map(part=>{
+  const tr=document.createElement('tr');
+  for(const value of [part.name,part.qty,(part.edgeMm/1000).toFixed(2)+' m',(part.edgeMm*part.qty/1000).toFixed(2)+' m']){
+   const td=document.createElement('td');td.textContent=value;tr.append(td);
+  }
+  return tr;
+ });
+ document.getElementById('edge-details').replaceChildren(...rows);
+}
+document.getElementById('edge-waste-percent').addEventListener('change',()=>{
+ try{renderEdgeBanding(calculateCabinet(Object.fromEntries(new FormData(document.getElementById('form')))))}catch(e){document.getElementById('edge-summary').textContent=e.message}
+});
+document.getElementById('form').addEventListener('submit',e=>{e.preventDefault();try{const data=Object.fromEntries(new FormData(e.target));const p=calculateCabinet(data);project={schemaVersion:1,kind:'cabinet',params:data};draw(p);renderEdgeBanding(p);document.getElementById('error').textContent='';document.getElementById('totals').textContent='Área: '+p.areaM2.toFixed(2)+' m² | Fita: '+p.edgeM.toFixed(2)+' m | Materiais estimados: '+p.estimatedMaterialCost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});document.getElementById('hardware').replaceChildren(...p.hardware.map(item=>{const tr=document.createElement('tr');for(const value of [item.label,item.quantity,item.unit]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}));document.getElementById('parts').replaceChildren(...p.parts.map(part=>{const tr=document.createElement('tr');for(const value of [part.name,part.qty,part.width.toFixed(1)+' × '+part.height.toFixed(1)+' × '+part.thickness]){const td=document.createElement('td');td.textContent=value;tr.appendChild(td)}return tr}))}catch(err){document.getElementById('error').textContent=err.message}});
 queueMicrotask(()=>document.getElementById('form').requestSubmit());
 document.getElementById('doorSwingField').hidden=false;
 document.getElementById('flapLayoutField').hidden=true;
@@ -129,7 +182,7 @@ canvas.addEventListener('pointermove',e=>{
  }else if(drag){
   const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
   if(drag.mode==='pan')panCamera(dx,dy);
-  else{viewAzimuth-=dx*.005;viewElevation+=dy*.005;updateCamera()}
+  else{viewAzimuth-=dx*.004;viewElevation-=dy*.004;updateCamera()}
   drag.x=e.clientX;drag.y=e.clientY;
  }
 });
@@ -200,7 +253,7 @@ function renderPresentationList(){
   const option=document.createElement('option');option.value=String(i);option.textContent=(presentationLabels[i]?.name||'Módulo '+(i+1))+' ('+params.width+' × '+params.height+' mm)';placementSelect.append(option);
   const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid #ddd';
   const name=document.createElement('span');name.style.flex='1';name.textContent=(presentationLabels[i]?.name||'Módulo '+(i+1))+' ['+(presentationLabels[i]?.type||'móvel')+'] — '+params.width+' × '+params.height+' × '+params.depth+' mm';
-  const edit=document.createElement('button');edit.type='button';edit.textContent='Editar';edit.onclick=()=>{applyProject({schemaVersion:1,kind:'cabinet',params});document.getElementById('module-name').value=presentationLabels[i]?.name||'';document.getElementById('module-type').value=presentationLabels[i]?.type||'outro';presentationPreview=false;presentationGroup.visible=false;group.visible=true;render();presentationReport('Módulo '+(i+1)+' carregado. Após alterar, clique em “Substituir módulo” para atualizar a apresentação.');selectedPresentationIndex=i;document.getElementById('add-presentation-module').textContent='Substituir módulo selecionado'};
+  const edit=document.createElement('button');edit.type='button';edit.textContent='Editar';edit.onclick=()=>{if(params._colors)applyComponentColors(params._colors);applyProject({schemaVersion:1,kind:'cabinet',params});document.getElementById('module-name').value=presentationLabels[i]?.name||'';document.getElementById('module-type').value=presentationLabels[i]?.type||'outro';presentationPreview=false;presentationGroup.visible=false;group.visible=true;render();presentationReport('Módulo '+(i+1)+' carregado. Após alterar, clique em “Substituir módulo” para atualizar a apresentação.');selectedPresentationIndex=i;document.getElementById('add-presentation-module').textContent='Substituir módulo selecionado'};
   const remove=document.createElement('button');remove.type='button';remove.textContent='Remover';remove.onclick=()=>{presentationModules.splice(i,1);presentationPlacements.splice(i,1);presentationLabels.splice(i,1);selectedPresentationIndex=-1;document.getElementById('add-presentation-module').textContent='Adicionar móvel atual';renderPresentationList();if(presentationPreview)drawPresentation();};
   row.append(name,edit,remove);list.append(row);
  });
@@ -216,15 +269,15 @@ document.getElementById('apply-placement').addEventListener('click',()=>{const i
 document.getElementById('view-placement').addEventListener('click',()=>{viewAzimuth=.48;viewElevation=.22;updateCamera()});
 function presentationBox(parent,x,y,z,w,h,d){
  if(w<=0||h<=0||d<=0)return;
- const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);
+ const mesh=new THREE.Mesh(cabinetGeometry(w,h,d),componentColorsActive?bodyMaterial:material);mesh.userData.partType='body';mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);
 }
 function drawPresentation(){
- while(presentationGroup.children.length){const child=presentationGroup.children[0];presentationGroup.remove(child);child.traverse(o=>{if(o.geometry)o.geometry.dispose()})}
+ while(presentationGroup.children.length){const child=presentationGroup.children[0];presentationGroup.remove(child);child.traverse(o=>{if(o.geometry&&!Array.from(cabinetGeometryCache.values()).includes(o.geometry))o.geometry.dispose()})}
  let total=0,maxHeight=0;const data=presentationModules.map(params=>{const p=calculateCabinet(params);total+=p.dimensions.width/1000;maxHeight=Math.max(maxHeight,p.dimensions.height/1000);return {params,p}});
  total+=Math.max(0,data.length-1)*.06;let offset=-total/2;
- for(const {params,p} of data){
+ for(const [index,{params,p}] of data.entries()){
   const w=p.dimensions.width/1000,h=p.dimensions.height/1000,d=p.dimensions.depth/1000,t=Number(params.thickness)/1000;
-  const index=data.findIndex(item=>item.params===params),placement=placementFor(index);
+  const placement=placementFor(index);
   const g=new THREE.Group();g.position.set(offset+w/2+placement.x/1000,placement.y/1000,placement.z/1000);g.rotation.y=THREE.MathUtils.degToRad(placement.rotation);presentationGroup.add(g);offset+=w+.06;
   presentationBox(g,-w/2+t/2,0,0,t,h,d);presentationBox(g,w/2-t/2,0,0,t,h,d);
   presentationBox(g,0,-h/2+t/2,0,w-2*t,t,d);presentationBox(g,0,h/2-t/2,0,w-2*t,t,d);presentationBox(g,0,0,-d/2+.003,w,h,.006);
@@ -233,9 +286,10 @@ function drawPresentation(){
   const div=Number(params.dividers||0);
   for(let j=1;j<=div;j++)presentationBox(g,-w/2+t+j*p.layout.bayWidth/1000+(j-.5)*t,0,0,t,h-2*t,d-.006);
   const doors=Number(params.doors||0),dh=p.layout.drawerHeight/1000,ph=p.layout.doorHeight/1000,stack=p.layout.doorType==='flap-down'&&p.layout.flapLayout!=='horizontal';
-  for(let j=0;j<doors;j++)presentationBox(g,stack?0:-w/2+(j+.5)*w/doors,stack?dh/2-ph/2+(j+.5)*ph/doors:dh/2,d/2+.012,stack?w-.006:w/doors-.006,stack?ph/doors-.004:ph-.004,t);
+  for(let j=0;j<doors;j++){presentationBox(g,stack?0:-w/2+(j+.5)*w/doors,stack?dh/2-ph/2+(j+.5)*ph/doors:dh/2,d/2+.012,stack?w-.006:w/doors-.006,stack?ph/doors-.004:ph-.004,t);const front=g.children[g.children.length-1];front.userData.partType='door';if(componentColorsActive)front.material=doorMaterial;}
   const drawers=Number(params.drawers||0),bayX=-w/2+t+(p.layout.drawerBay-.5)*p.layout.bayWidth/1000+(p.layout.drawerBay-1)*t;
-  for(let j=0;j<drawers;j++)presentationBox(g,bayX,-h/2+(j+.5)*dh/drawers,d/2+.012,p.layout.bayWidth/1000-.006,dh/drawers-.004,t);
+  for(let j=0;j<drawers;j++){presentationBox(g,bayX,-h/2+(j+.5)*dh/drawers,d/2+.012,p.layout.bayWidth/1000-.006,dh/drawers-.004,t);const front=g.children[g.children.length-1];front.userData.partType='drawer';if(componentColorsActive)front.material=drawerMaterial;}
+  if(params._colors){for(const mesh of g.children){const key=mesh.userData.partType==='door'?'doors':mesh.userData.partType==='drawer'?'drawers':'body';if(/^#[0-9a-fA-F]{6}$/.test(params._colors[key]||'')){mesh.material=mesh.material.clone();mesh.material.map=null;mesh.material.color.set(params._colors[key]);}}}
  }
  presentationPreview=true;group.visible=false;presentationGroup.visible=true;
  const bounds=new THREE.Box3().setFromObject(presentationGroup),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
@@ -265,6 +319,7 @@ document.getElementById('preview-current').addEventListener('click',()=>{present
 function syncCurrentCabinetForSharing(){
  const params=Object.fromEntries(new FormData(document.getElementById('form')));
  calculateCabinet(params);
+ if(componentColorsActive)params._colors=componentColors();
  const label={name:(document.getElementById('module-name').value.trim()||'Móvel em edição').slice(0,100),type:document.getElementById('module-type').value};
  if(selectedPresentationIndex>=0&&presentationModules[selectedPresentationIndex]){
   presentationModules[selectedPresentationIndex]={...params};
@@ -287,7 +342,7 @@ function syncCurrentCabinetForSharing(){
 }
 document.getElementById('create-presentation-link').addEventListener('click',()=>{
  try{syncCurrentCabinetForSharing();if(!presentationModules.length)throw Error('Adicione pelo menos um móvel à apresentação.');
- const payload={version:1,title:document.getElementById('presentation-title').value.trim().slice(0,100),modules:presentationModules,placements:presentationPlacements,labels:presentationLabels,finish:{color:'#'+material.color.getHexString(),image:activeShareFinishImage||null}};
+ const payload={version:1,title:document.getElementById('presentation-title').value.trim().slice(0,100),modules:presentationModules,placements:presentationPlacements,labels:presentationLabels,finish:{color:'#'+material.color.getHexString(),image:componentColorsActive?null:(activeShareFinishImage||null)},componentColors:componentColorsActive?componentColors():null};
  const bytes=new TextEncoder().encode(JSON.stringify(payload));let binary='';for(const b of bytes)binary+=String.fromCharCode(b);
  const token=btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
  if(token.length>15000)throw Error('O link ficou grande demais para incluir a textura. Utilize um acabamento de cor sólida ou aguarde o compartilhamento de imagens na nuvem.');
@@ -408,9 +463,9 @@ canvas.addEventListener('pointermove',e=>{
  const up=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
  const scale=2*viewDistance*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)/(host.clientHeight||450)*1000;
  const p={...placementFor(movingPointer.index)};
- p.x=Math.round((p.x+(dx*right.x-dy*up.x)*scale)/10)*10;
- p.y=Math.round((p.y+(-dx*right.y+dy*up.y)*scale)/10)*10;
- p.z=Math.round((p.z+(dx*right.z-dy*up.z)*scale)/10)*10;
+ p.x=p.x+(dx*right.x-dy*up.x)*scale;
+ p.y=p.y+(dx*right.y-dy*up.y)*scale;
+ p.z=p.z+(dx*right.z-dy*up.z)*scale;
  presentationPlacements[movingPointer.index]=p;
  const g=presentationGroup.children[movingPointer.index];
  if(g){const baseline=-presentationModules.reduce((s,m)=>s+Number(m.width)/1000,0)/2-(presentationModules.length-1)*.03+presentationModules.slice(0,movingPointer.index).reduce((s,m)=>s+Number(m.width)/1000+.06,0)+Number(presentationModules[movingPointer.index].width)/2000;g.position.set(baseline+p.x/1000,p.y/1000,p.z/1000)}
@@ -421,6 +476,42 @@ canvas.addEventListener('pointerup',stopMoving,true);
 canvas.addEventListener('pointercancel',stopMoving,true);
 syncInteractionMode();
 
+// Amostras genéricas e ilustrativas; sem atribuição de marca ou código comercial.
+const DEFAULT_FINISH_PRESETS=[
+ {name:'Branco',color:'#f4f3ed',pattern:'solid'},
+ {name:'Off-white',color:'#e7dfd1',pattern:'solid'},
+ {name:'Cinza cristal',color:'#b6b9b6',pattern:'solid'},
+ {name:'Cinza grafite',color:'#51565a',pattern:'solid'},
+ {name:'Preto fosco',color:'#252526',pattern:'solid'},
+ {name:'Areia / fendi',color:'#c5b7a3',pattern:'solid'},
+ {name:'Carvalho claro',color:'#c4a77c',pattern:'wood'},
+ {name:'Freijó claro',color:'#b98c5e',pattern:'wood'},
+ {name:'Nogueira',color:'#78533d',pattern:'wood'},
+ {name:'Amadeirado escuro',color:'#4b3429',pattern:'wood'},
+ {name:'Verde oliva',color:'#747b65',pattern:'solid'},
+ {name:'Azul petróleo',color:'#39535a',pattern:'solid'}
+];
+function renderFinishPresets(){
+ const host=document.getElementById('finish-presets');if(!host)return;
+ host.replaceChildren();
+ for(const preset of DEFAULT_FINISH_PRESETS){
+  const button=document.createElement('button');button.type='button';button.className='finish-preset';
+  button.title='Aplicar '+preset.name+' (aproximação visual)';
+  const swatch=document.createElement('span');swatch.className='swatch';
+  swatch.style.backgroundColor=preset.color;
+  if(preset.pattern==='wood')swatch.style.backgroundImage='repeating-linear-gradient(91deg,transparent 0px,rgba(35,19,8,.10) 2px,transparent 4px,transparent 11px,rgba(255,255,255,.13) 13px,transparent 17px)';
+  const name=document.createElement('span');name.textContent=preset.name;button.append(swatch,name);
+  button.onclick=()=>{
+   const target=document.getElementById('preset-target').value;
+   const input=document.getElementById('cabinet-'+(target==='body'?'body':target==='doors'?'door':'drawer')+'-color');
+   input.value=preset.color;
+   document.getElementById('apply-component-colors').click();
+   finishReport('Amostra '+preset.name+' aplicada em '+({body:'estrutura',doors:'portas',drawers:'gavetas'}[target])+'. Cor aproximada, não textura comercial.');
+  };
+  host.append(button);
+ }
+}
+renderFinishPresets();
 const FINISH_KEY='vertice:studio:finishes:v1';
 let activeShareFinishImage=null;
 let finishes=[];
@@ -611,3 +702,32 @@ legacyImport.addEventListener('change',async e=>{
  catch(err){report('Falha na importação: '+err.message)}
  finally{e.target.value=''}
 },true);
+
+document.getElementById('apply-component-colors').addEventListener('click',()=>{
+ applyComponentColors({body:document.getElementById('cabinet-body-color').value,doors:document.getElementById('cabinet-door-color').value,drawers:document.getElementById('cabinet-drawer-color').value});
+ const i=Number(document.getElementById('placement-module').value);
+ if(presentationModules[i]&&presentationPreview){presentationModules[i]._colors=componentColors();drawPresentation();presentationReport('Cores aplicadas ao módulo selecionado: '+(presentationLabels[i]?.name||'Módulo '+(i+1))+'.');}
+ else if(selectedPresentationIndex>=0&&presentationModules[selectedPresentationIndex]){presentationModules[selectedPresentationIndex]._colors=componentColors();presentationReport('Cores do módulo em edição atualizadas.');}
+ else presentationReport('Cores aplicadas ao móvel atual. Adicione-o à apresentação para salvar o acabamento.');
+});
+document.getElementById('align-modules').addEventListener('click',()=>{
+ if(!presentationModules.length)return presentationReport('Adicione móveis antes de alinhar.');
+ let x=0;
+ for(let i=0;i<presentationModules.length;i++){
+  const p=placementFor(i);
+  presentationPlacements[i]={...p,x:Math.round(x),y:0,z:0,rotation:0};
+  x+=Number(presentationModules[i].width)||0;
+ }
+ renderPresentationList();drawPresentation();
+ presentationReport('Módulos alinhados em sequência, sem espaçamento adicional.');
+});
+document.getElementById('duplicate-selected').addEventListener('click',()=>{
+ const i=Number(document.getElementById('placement-module').value);
+ if(!presentationModules[i])return presentationReport('Selecione um módulo para duplicar.');
+ if(presentationModules.length>=15)return presentationReport('Limite de 15 módulos.');
+ presentationModules.push({...presentationModules[i]});
+ presentationLabels.push({...presentationLabels[i],name:(presentationLabels[i]?.name||'Módulo')+' cópia'});
+ presentationPlacements.push({...placementFor(i),x:(Number(placementFor(i).x)||0)+Number(presentationModules[i].width)});
+ renderPresentationList();document.getElementById('placement-module').value=String(presentationModules.length-1);
+ drawPresentation();presentationReport('Módulo duplicado.');
+});
