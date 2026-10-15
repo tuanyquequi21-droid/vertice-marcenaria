@@ -14,7 +14,11 @@ export function cuttingReportHTML(plan,parts,{projectName='Projeto Vértice',bac
   const rows=sheet.pieces.map((p,i)=>{
    const letterId=labels.get(p.name+'|'+p.thickness);
    const fill=sheet.thickness===6?'#ffffff':palette[names.indexOf(p.name+'|'+p.thickness)%palette.length];
-   const label=p.w>=170&&p.h>=100?'<text x="'+(p.x+p.w/2)+'" y="'+(p.y+p.h/2-12)+'" text-anchor="middle" font-size="48" font-weight="bold" fill="#28313d">'+letterId+'</text><text x="'+(p.x+p.w/2)+'" y="'+(p.y+p.h/2+35)+'" text-anchor="middle" font-size="29" fill="#28313d">'+fmt(p.width)+' × '+fmt(p.height)+'</text>':'';
+   const centerX=p.x+p.w/2,centerY=p.y+p.h/2;
+   const nameSize=Math.min(37,Math.max(17,Math.min(p.w/Math.max(5,p.name.length*.62),p.h/4)));
+   const label=p.w>=95&&p.h>=65
+    ?'<g fill="#28313d" text-anchor="middle"><text x="'+centerX+'" y="'+(centerY-nameSize*.75)+'" font-size="'+nameSize+'" font-weight="bold">'+esc(p.name)+'</text><text x="'+centerX+'" y="'+(centerY+nameSize*.7)+'" font-size="'+Math.min(29,nameSize)+'">'+fmt(p.width)+' × '+fmt(p.height)+'</text><text x="'+centerX+'" y="'+(centerY+nameSize*1.8)+'" font-size="'+Math.min(25,nameSize*.8)+'">'+esc(letterId)+'</text></g>'
+    :'<text x="'+centerX+'" y="'+centerY+'" text-anchor="middle" font-size="'+Math.min(28,p.w/2)+'" fill="#28313d">'+esc(letterId)+'</text>';
    return '<g><rect x="'+p.x+'" y="'+p.y+'" width="'+p.w+'" height="'+p.h+'" fill="'+fill+'" stroke="#445262" stroke-width="3"/><title>'+esc(letterId+' · '+p.name+' · '+fmt(p.width)+' × '+fmt(p.height)+' mm'+(p.rotated?' · rotacionada':''))+'</title>'+label+'</g>';
   }).join('');
   const dimLines=sheet.pieces.map(p=>{
