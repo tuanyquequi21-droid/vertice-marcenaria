@@ -386,6 +386,7 @@ function renderCutPlan(){
  }catch(e){summary.textContent='Não foi possível calcular o plano: '+e.message}
 }
 document.getElementById('calculate-cut').addEventListener('click',renderCutPlan);
+document.getElementById('jump-cut').addEventListener('click',()=>{document.getElementById('materials-panel').scrollIntoView({behavior:'smooth',block:'start'});});
 document.getElementById('print-cut').addEventListener('click',()=>{renderCutPlan();window.print()});
 for(const id of ['sheet-width','sheet-height','cut-kerf','cut-margin','cut-grain']){
  document.getElementById(id).addEventListener('change',renderCutPlan);
