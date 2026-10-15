@@ -471,6 +471,44 @@ document.getElementById('back-type').addEventListener('change',()=>{
 document.getElementById('back-color').addEventListener('change',()=>document.getElementById('form').requestSubmit());
 document.getElementById('calculate-cut').addEventListener('click',renderCutPlan);
 document.getElementById('jump-cut').addEventListener('click',()=>{document.getElementById('materials-panel').scrollIntoView({behavior:'smooth',block:'start'});});
+// Importação GLB isolada do projeto paramétrico: nenhuma peça é inferida sem confirmação.
+let importedSketchup=null;
+const importedSketchupGroup=new THREE.Group();scene.add(importedSketchupGroup);
+const sketchupStatus=document.getElementById('sketchup-status');
+document.getElementById('import-sketchup').addEventListener('change',async e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ try{
+  if(!/\\.glb$/i.test(file.name))throw Error('Exporte o modelo do SketchUp como GLB.');
+  if(file.size>40*1024*1024)throw Error('Arquivo acima de 40 MB. Reduza o modelo.');
+  sketchupStatus.textContent='Carregando modelo 3D...';
+  const {GLTFLoader}=await import('https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/loaders/GLTFLoader.js');
+  const loaded=await new GLTFLoader().parseAsync(await file.arrayBuffer(),'');
+  while(importedSketchupGroup.children.length)importedSketchupGroup.remove(importedSketchupGroup.children[0]);
+  importedSketchupGroup.add(loaded.scene);
+  importedSketchup=loaded.scene;
+  importedSketchupGroup.visible=true;group.visible=false;presentationGroup.visible=false;presentationPreview=false;
+  const bounds=new THREE.Box3().setFromObject(importedSketchupGroup);
+  if(bounds.isEmpty())throw Error('Modelo sem geometria visível.');
+  bounds.getCenter(viewTarget);
+  modelSize=bounds.getSize(new THREE.Vector3()).length();
+  viewAzimuth=.48;viewElevation=.22;viewDistance=cameraFitDistance();updateCamera();
+  let meshes=0;loaded.scene.traverse(o=>{if(o.isMesh)meshes++});
+  sketchupStatus.textContent='GLB carregado: '+meshes+' malhas. Visualização pronta. Para corte, confirme unidade e painéis; o GLB não garante nomes nem espessuras.';
+ }catch(err){sketchupStatus.textContent='Erro na importação: '+err.message;importedSketchup=null;importedSketchupGroup.visible=false;group.visible=true;resetCamera()}
+});
+document.getElementById('analyze-sketchup').addEventListener('click',()=>{
+ if(!importedSketchup)return sketchupStatus.textContent='Importe um GLB primeiro.';
+ const detected=[];
+ importedSketchup.updateWorldMatrix(true,true);
+ importedSketchup.traverse(o=>{
+  if(!o.isMesh)return;
+  const b=new THREE.Box3().setFromObject(o);if(b.isEmpty())return;
+  const size=b.getSize(new THREE.Vector3());
+  detected.push({name:o.name||'Malha sem nome',dimensions:[size.x,size.y,size.z].map(v=>Math.round(v*1000))});
+ });
+ const simple=detected.filter(p=>p.dimensions.every(v=>v>0));
+ sketchupStatus.textContent='Análise preliminar: '+detected.length+' malhas; '+simple.length+' caixas delimitadoras. As medidas presumem GLB em metros. Caixas delimitadoras não comprovam que uma malha seja uma chapa retangular. Não foi gerado plano de corte automático sem validação.';
+});
 document.getElementById('assembly-manual').addEventListener('click',()=>{
  try{
   const params=Object.fromEntries(new FormData(document.getElementById('form')));
