@@ -114,6 +114,55 @@ function panCamera(dx,dy){
  viewTarget.addScaledVector(right,-dx*scale).addScaledVector(up,dy*scale);
  updateCamera();
 }
+// Modo de apresentação: materiais PBR e iluminação ajustável, sem alterar o modelo técnico.
+const studioFloor=new THREE.Mesh(new THREE.PlaneGeometry(80,80),new THREE.MeshStandardMaterial({color:0xd7d4cd,roughness:.94}));
+studioFloor.rotation.x=-Math.PI/2;studioFloor.receiveShadow=true;studioFloor.visible=false;scene.add(studioFloor);
+const studioAmbient=new THREE.AmbientLight(0xffffff,.32);scene.add(studioAmbient);
+const studioKey=new THREE.DirectionalLight(0xfff1de,1.2);studioKey.position.set(-3,6,2);studioKey.castShadow=true;studioKey.shadow.mapSize.set(2048,2048);studioKey.shadow.bias=-.00012;studioKey.shadow.normalBias=.02;studioKey.shadow.camera.left=-8;studioKey.shadow.camera.right=8;studioKey.shadow.camera.top=8;studioKey.shadow.camera.bottom=-8;scene.add(studioKey);
+const studioRim=new THREE.DirectionalLight(0xdce7ff,.85);studioRim.position.set(3,4,-4);scene.add(studioRim);
+function setupPresentationLighting(){
+ const mode=document.getElementById('render-lighting').value;
+ const warm=mode==='warm',neutral=mode==='neutral';
+ studioKey.color.set(warm?0xffdbab:0xfff1de);
+ studioRim.color.set(warm?0xffe0b6:0xdce7ff);
+ studioKey.intensity=warm?1.6:neutral?1.1:1.3;
+ studioRim.intensity=warm?.45:neutral?.65:.85;
+ renderer.toneMappingExposure=warm?1.08:neutral?1.04:1.12;
+ scene.background=new THREE.Color(warm?'#b9aea0':neutral?'#d2d4d6':'#c8c4bd');
+ render();
+}
+document.getElementById('render-lighting').addEventListener('change',setupPresentationLighting);
+function presentationFloorPosition(){
+ const active=presentationPreview&&presentationGroup.visible?presentationGroup:group;
+ const bounds=new THREE.Box3().setFromObject(active);
+ if(bounds.isEmpty())return null;
+ const center=bounds.getCenter(new THREE.Vector3());
+ return {x:center.x,y:bounds.min.y-.018,z:center.z};
+}
+document.getElementById('render-save').addEventListener('click',()=>{
+ const status=document.getElementById('render-status');
+ const mode=document.getElementById('render-quality').value;
+ const max=mode==='professional'?3000:mode==='final'?1920:Math.max(800,host.clientWidth);
+ const w=host.clientWidth||900,h=host.clientHeight||600,scale=max/Math.max(w,h);
+ const outputW=Math.round(w*scale),outputH=Math.round(h*scale);
+ const oldRatio=renderer.getPixelRatio(),oldBg=scene.background.clone(),oldFloor=studioFloor.visible,oldExposure=renderer.toneMappingExposure;
+ const floor=presentationFloorPosition();
+ if(!floor){status.textContent='Crie um móvel antes de exportar a imagem.';return}
+ try{
+  studioFloor.position.set(floor.x,floor.y,floor.z);studioFloor.visible=true;
+  setupPresentationLighting();
+  renderer.setPixelRatio(1);renderer.setSize(outputW,outputH,false);
+  camera.aspect=outputW/outputH;camera.updateProjectionMatrix();
+  renderer.render(scene,camera);
+  const url=renderer.domElement.toDataURL('image/png');
+  const link=document.createElement('a');link.download='vertice-studio-apresentacao-'+mode+'.png';link.href=url;link.click();
+  status.textContent='Imagem exportada: '+outputW+' × '+outputH+' px. O resultado depende das texturas e geometria do projeto.';
+ }catch(err){status.textContent='Erro ao exportar: '+err.message}
+ finally{
+  studioFloor.visible=oldFloor;scene.background=oldBg;renderer.toneMappingExposure=oldExposure;
+  renderer.setPixelRatio(oldRatio);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();render();
+ }
+});
 function render(){const width=host.clientWidth||500,height=host.clientHeight||450;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();renderer.render(scene,camera)}
 new ResizeObserver(render).observe(host);
 function renderEdgeBanding(p){
