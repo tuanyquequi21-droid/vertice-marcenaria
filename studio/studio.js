@@ -481,7 +481,7 @@ document.getElementById('import-sketchup').addEventListener('change',async e=>{
   if(!/\\.glb$/i.test(file.name))throw Error('Exporte o modelo do SketchUp como GLB.');
   if(file.size>40*1024*1024)throw Error('Arquivo acima de 40 MB. Reduza o modelo.');
   sketchupStatus.textContent='Carregando modelo 3D...';
-  const {GLTFLoader}=await import('https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/loaders/GLTFLoader.js');
+  const {GLTFLoader}=await import('https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/loaders/GLTFLoader.js/+esm');
   const loaded=await new GLTFLoader().parseAsync(await file.arrayBuffer(),'');
   while(importedSketchupGroup.children.length)importedSketchupGroup.remove(importedSketchupGroup.children[0]);
   importedSketchupGroup.add(loaded.scene);
