@@ -50,6 +50,10 @@ export function calculateCabinet(input={}){
  if(drawers>0&&drawerHeight/drawers<120)throw new RangeError('Altura insuficiente para a quantidade de gavetas');
  if(w<=4*t+26||h<=2*t||depth<=Math.max(bt,80))throw new RangeError('Dimensões insuficientes para a espessura');
  if(!Number.isFinite(waste)||waste<0||waste>100)throw new RangeError('Perda inválida');
+ const baseType=String(d.baseType??'plinth');
+ if(!['plinth','feet','none'].includes(baseType))throw new RangeError('Tipo de base inválido');
+ const plinthHeight=100,plinthDepth=Math.max(80,depth-60);
+ const baseSupports=baseType==='plinth'?Math.max(0,Math.ceil(w/500)-1):0;
  const parts=[
   {name:'Lateral',qty:2,width:depth,height:h,thickness:t,edgeMm:h},
   {name:'Base',qty:1,width:w-2*t,height:depth,thickness:t,edgeMm:w-2*t},
@@ -61,10 +65,17 @@ export function calculateCabinet(input={}){
   ...(doors?[{name:doorType==='sliding'?'Folha de correr':doorType==='flap-down'?'Porta basculante inferior':'Porta de abrir',qty:doors,width:doorType==='flap-down'&&flapLayout==='vertical'?w-6:doorType==='sliding'?(w/doors+Math.min(30,w*.025)):w/doors-3,height:doorType==='flap-down'&&flapLayout==='vertical'?doorHeight/doors-4:doorHeight-4,thickness:t,edgeMm:2*((doorType==='flap-down'&&flapLayout==='vertical'?w-6:doorType==='sliding'?(w/doors+Math.min(30,w*.025)):w/doors-3)+(doorType==='flap-down'&&flapLayout==='vertical'?doorHeight/doors-4:doorHeight-4))}]:[]),
   ...(drawers?[{name:'Frente de gaveta',qty:drawers,width:bayWidth-6,height:drawerHeight/drawers-4,thickness:t,edgeMm:2*(bayWidth-6+drawerHeight/drawers-4)},{name:'Lateral de gaveta',qty:drawers*2,width:depth-60,height:Math.min(160,drawerHeight/drawers-50),thickness:t,edgeMm:depth-60},{name:'Frente interna da caixa',qty:drawers,width:bayWidth-2*t-26,height:Math.min(160,drawerHeight/drawers-50),thickness:t,edgeMm:0},{name:'Contra-frente (traseira da caixa)',qty:drawers,width:w-4*t-26,height:Math.min(160,drawerHeight/drawers-50),thickness:t,edgeMm:0},{name:'Fundo de gaveta',qty:drawers,width:w-4*t-26,height:depth-60,thickness:bt,edgeMm:0}]:[])
  ];
+ if(baseType==='plinth'){
+  parts.push({name:'Rodapé frontal',qty:1,width:w,height:plinthHeight,thickness:t,edgeMm:w});
+  parts.push({name:'Rodapé traseiro',qty:1,width:w,height:plinthHeight,thickness:t,edgeMm:0});
+  parts.push({name:'Apoio lateral da base',qty:2,width:plinthDepth,height:plinthHeight,thickness:t,edgeMm:0});
+  if(baseSupports)parts.push({name:'Divisória de apoio da base',qty:baseSupports,width:plinthDepth,height:plinthHeight,thickness:t,edgeMm:0});
+ }
+
  if(parts.some(p=>p.width<=0||p.height<=0))throw new RangeError('Medidas insuficientes para gavetas');
  const areaM2=parts.reduce((sum,p)=>sum+p.qty*p.width*p.height/1e6,0);
  const edgeM=parts.reduce((sum,p)=>sum+p.qty*p.edgeMm/1000,0);
  const price=positive(d.pricePerM2,'Preço por m²'),edgePrice=Number(d.edgePricePerM);
  if(!Number.isFinite(edgePrice)||edgePrice<0)throw new RangeError('Preço da fita inválido');
- return {hardware:calculateHardware(d),dimensions:{width:w,height:h,depth},layout:{drawerHeight,doorHeight,bayWidth,drawerBay,bays,doorType,doorSwing,flapLayout},parts,areaM2,edgeM,estimatedMaterialCost:areaM2*(1+waste/100)*price+edgeM*edgePrice,assumptions:['Medidas em mm','Ferragens calculadas apenas em quantidades; modelos, cargas e compatibilidade exigem revisão técnica','Caixas de gaveta são estimativas: conferir corrediças, folgas e montagem antes da fabricação']};
+ return {hardware:calculateHardware(d),dimensions:{width:w,height:h,depth},layout:{drawerHeight,doorHeight,bayWidth,drawerBay,bays,doorType,doorSwing,flapLayout,baseType,baseSupports,plinthHeight},parts,areaM2,edgeM,estimatedMaterialCost:areaM2*(1+waste/100)*price+edgeM*edgePrice,assumptions:['Medidas em mm','Ferragens calculadas apenas em quantidades; modelos, cargas e compatibilidade exigem revisão técnica','Caixas de gaveta são estimativas: conferir corrediças, folgas e montagem antes da fabricação']};
 }
