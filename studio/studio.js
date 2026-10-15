@@ -1,5 +1,6 @@
 import {calculateCabinet} from './engine.mjs';
 import {planCutting} from './cutting.mjs';
+import {cuttingReportHTML} from './cutting-report.mjs';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
 
 // Bordas discretamente arredondadas simulam a quina real do MDF com fita de borda.
@@ -424,6 +425,20 @@ document.getElementById('back-type').addEventListener('change',()=>{
 document.getElementById('back-color').addEventListener('change',()=>document.getElementById('form').requestSubmit());
 document.getElementById('calculate-cut').addEventListener('click',renderCutPlan);
 document.getElementById('jump-cut').addEventListener('click',()=>{document.getElementById('materials-panel').scrollIntoView({behavior:'smooth',block:'start'});});
+document.getElementById('export-cut').addEventListener('click',()=>{
+ try{
+  const plan=getCutPlan();
+  if(plan.unplaced.length)throw Error('Plano incompleto: existem '+plan.unplaced.length+' peças que não cabem. Corrija antes de exportar.');
+  const params=Object.fromEntries(new FormData(document.getElementById('form')));
+  const parts=calculateCabinet(params).parts;
+  const html=cuttingReportHTML(plan,parts,{projectName:'Plano de corte — Vértice Studio',backColor:params.backColor});
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='vertice-plano-de-corte.html';document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),15000);
+  report('Relatório exportado em HTML. Abra o arquivo e clique em Imprimir / Salvar como PDF.');
+ }catch(err){report('Não foi possível exportar: '+err.message)}
+});
 document.getElementById('print-cut').addEventListener('click',()=>{renderCutPlan();window.print()});
 for(const id of ['sheet-width','sheet-height','cut-kerf','cut-margin','cut-grain']){
  document.getElementById(id).addEventListener('change',renderCutPlan);
