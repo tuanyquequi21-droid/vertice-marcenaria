@@ -134,7 +134,7 @@ function syncBackColor(p){
  backPanelMaterial.color.set(p.layout.backColor||'#ffffff');
  backPanelMaterial.needsUpdate=true;
 }
-function draw(p){syncBackColor(p);presentationPreview=false;presentationGroup.visible=false;group.visible=true;fronts.length=0;doorMeta=[];doorsOpened=false;while(group.children.length){const mesh=group.children[0];group.remove(mesh);void 0}
+function draw(p){if(typeof importedSketchupGroup!=='undefined')importedSketchupGroup.visible=false;syncBackColor(p);presentationPreview=false;presentationGroup.visible=false;group.visible=true;fronts.length=0;doorMeta=[];doorsOpened=false;while(group.children.length){const mesh=group.children[0];group.remove(mesh);void 0}
  const {width:w,height:h,depth:d}=p.dimensions;const t=Number(document.querySelector('[name=thickness]').value),s=Number(document.querySelector('[name=shelves]').value),doors=Number(document.querySelector('[name=doors]').value);
  const drawers=Number(document.querySelector('[name=drawers]').value||0),dividers=Number(document.querySelector('[name=dividers]').value||0);const W=w/1000,H=h/1000,D=d/1000,T=t/1000;addBox(-W/2+T/2,0,0,T,H,D);addBox(W/2-T/2,0,0,T,H,D);
  addBox(0,-H/2+T/2,0,W-2*T,T,D);addBox(0,H/2-T/2,0,W-2*T,T,D);
@@ -182,7 +182,7 @@ document.getElementById('doorType').addEventListener('change',e=>{
  document.getElementById('flapLayoutField').hidden=e.target.value!=='flap-down';
 });
 function visibleModelBounds(){
- const active=presentationPreview&&presentationGroup.visible?presentationGroup:group;
+ const active=typeof importedSketchupGroup!=='undefined'&&importedSketchupGroup.visible&&importedSketchupGroup.children.length?importedSketchupGroup:(presentationPreview&&presentationGroup.visible?presentationGroup:group);
  active.updateWorldMatrix(true,true);
  const box=new THREE.Box3().setFromObject(active);
  return box.isEmpty()?new THREE.Box3(new THREE.Vector3(-.4,-1.1,-.3),new THREE.Vector3(.4,1.1,.3)):box;
