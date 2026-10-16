@@ -141,7 +141,7 @@ function draw(p){if(typeof importedSketchupGroup!=='undefined')importedSketchupG
  if(p.layout.backType!=='none'){addBox(0,0,-D/2+.003,W,H,.006);group.children[group.children.length-1].material=backPanelMaterial;group.children[group.children.length-1].userData.partType='back';}
  const DH=p.layout.drawerHeight/1000,PH=p.layout.doorHeight/1000,PW=p.layout.doorAreaWidth/1000,PB=p.layout.doorAreaBottom/1000;
  const doorX=p.layout.doorWidthZone==='left'?-W/4:p.layout.doorWidthZone==='right'?W/4:0;
- if(doors&&(drawers||p.layout.doorHeightZone!=='full'))addBox(0,-H/2+p.layout.doorAreaBottom/1000,0,W-2*T,T,D-.006);
+ if(doors&&(drawers||p.layout.doorHeightZone!=='full'))addBox(0,-H/2+(p.layout.doorHeightZone==='bottom'?p.layout.doorAreaBottom+p.layout.doorHeight:p.layout.doorAreaBottom)/1000,0,W-2*T,T,D-.006);
  for(let i=0;i<doors;i++){
   const type=p.layout.doorType,overlap=Math.min(.03,W*.025),leafWidth=type==='sliding'?PW/doors+overlap:PW/doors-.006;
   const flap=type==='flap-down',stacked=flap&&p.layout.flapLayout!=='horizontal';
