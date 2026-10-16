@@ -159,14 +159,14 @@ async function printQuote(id){
  projects=projects||[];
  let frete=Number(o.detalhes_calculo?.freteCliente||0),mont=Number(o.valor_montagem||0);
  let base=Number(o.valor_antes_parcelamento||o.preco_final||0),projeto=Math.max(0,base-frete-mont);
- let projectHtml=projects.length?projects.map((p,i)=>`<div class=project><h3>${i+1}. ${esc(p.nome)}</h3>${p.descricao_cliente?`<p>${esc(p.descricao_cliente).replace(/\n/g,"<br>")}</p>`:""}</div>`).join(""):`<div class=project><h3>${esc(o.projeto||"Projeto / móveis sob medida")}</h3></div>`;
+ let projectHtml=projects.length?projects.map((p,i)=>`<div class=project><h3>${i+1}. ${esc(p.nome)}</h3>${p.descricao_cliente?`<p>${esc(p.descricao_cliente).replace(/\n/g,"<br>")}</p>`:""}</div>`).join(""):`<div class=project><h3>${esc(o.projeto||"Móvel planejado")}</h3></div>`;
  let pay=o.forma_pagamento==="Parcelado"?`${o.numero_parcelas||1}x de ${money(Number(o.preco_final||0)/(o.numero_parcelas||1))}`:esc(o.forma_pagamento||o.condicoes_pagamento||"A combinar");
  let w=open("","_blank");w.document.write(`<!doctype html><html><head><meta charset=utf-8><title>Orçamento #${o.id}</title><style>
  body{font-family:Arial;color:#222;max-width:850px;margin:35px auto;font-size:13px}.head{display:flex;justify-content:space-between;border-bottom:3px solid #b48a35;padding-bottom:18px}.logo{font-family:Georgia;font-size:28px;letter-spacing:3px}.gold{color:#9b752b}.box{border:1px solid #ddd;padding:14px;margin:16px 0}.project{padding:10px 0;border-bottom:1px solid #eee}.project h3{margin:0 0 6px;color:#7d6028}.project p{line-height:1.55;margin:0}table{width:100%;border-collapse:collapse}td{padding:9px;border-bottom:1px solid #eee}.right{text-align:right}.total{font-size:21px;font-weight:bold}.terms{font-size:12px;line-height:1.7}.obs{white-space:pre-line}@media print{button{display:none}}</style></head><body>
  <div class=head><div><div class=logo>VÉRTICE</div><div class=gold>MARCENARIA</div></div><div><b>ORÇAMENTO #${o.id}</b><br>${new Date(o.data_criacao||Date.now()).toLocaleDateString("pt-BR")}</div></div>
  <div class=box><b>Cliente:</b> ${esc(o.cliente_nome||"")}<br><b>CPF:</b> ${esc(cpf(o.cliente_cpf))}<br><b>Telefone:</b> ${esc(phone(o.cliente_telefone))}<br><b>E-mail:</b> ${esc(o.cliente_email||"")}<br><b>Endereço:</b> ${esc([o.cliente_endereco,o.cliente_numero,o.cliente_cidade,o.cliente_uf].filter(Boolean).join(", "))}</div>
- <h2>Projeto / móveis sob medida</h2>${projectHtml}
- <table><tr><td>Projeto / móveis sob medida</td><td class=right>${money(projeto)}</td></tr><tr><td>Frete / entrega</td><td class=right>${money(frete)}</td></tr><tr><td><b>VALOR TOTAL</b></td><td class="right total">${money(o.preco_final)}</td></tr></table>
+ <h2>Móvel planejado</h2>${projectHtml}
+ <table><tr><td>Móvel planejado</td><td class=right>${money(projeto)}</td></tr><tr><td>Frete / entrega</td><td class=right>${money(frete)}</td></tr><tr><td><b>VALOR TOTAL</b></td><td class="right total">${money(o.preco_final)}</td></tr></table>
  <div class="box terms"><b>Prazo de entrega:</b> ${o.prazo_entrega_dias?o.prazo_entrega_dias+" dias":"A combinar"}<br><b>Validade da proposta:</b> ${o.validade_dias||15} dias<br><b>Condições de pagamento:</b> ${pay}${o.observacoes_cliente?`<br><br><b>Observações:</b><div class=obs>${esc(o.observacoes_cliente)}</div>`:""}</div>
  <p style="margin-top:55px">_________________________________________<br>Cliente / aceite</p><button onclick=print()>Imprimir / Salvar PDF</button></body></html>`);w.document.close();
 }
