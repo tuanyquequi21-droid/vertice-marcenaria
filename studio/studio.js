@@ -382,10 +382,15 @@ document.getElementById('interior').addEventListener('click',()=>{showFront=!sho
 
 // Plano de corte: algoritmo de prateleiras guilhotinadas, por espessura.
 // As cores representam peças e não o padrão comercial do MDF.
-function getCutPlan(){
+function getCutParts(){
+ if(typeof presentationModules!=='undefined'&&presentationModules.length){
+  return presentationModules.flatMap((params,index)=>calculateCabinet(params).parts.map(part=>({...part,name:'M'+(index+1)+' · '+part.name})));
+ }
  const params=Object.fromEntries(new FormData(document.getElementById('form')));
- const calc=calculateCabinet(params);
- return planCutting(calc.parts,{
+ return calculateCabinet(params).parts;
+}
+function getCutPlan(){
+ return planCutting(getCutParts(),{
   sheetWidth:Number(document.getElementById('sheet-width').value),
   sheetHeight:Number(document.getElementById('sheet-height').value),
   kerf:Number(document.getElementById('cut-kerf').value),
@@ -540,7 +545,7 @@ document.getElementById('export-cut').addEventListener('click',async()=>{
   const plan=getCutPlan();
   if(plan.unplaced.length)throw Error('Plano incompleto: existem '+plan.unplaced.length+' peças que não cabem. Corrija antes de exportar.');
   const params=Object.fromEntries(new FormData(document.getElementById('form')));
-  const parts=calculateCabinet(params).parts;
+  const parts=getCutParts();
   const {cuttingReportHTML}=await import('./cutting-report.mjs');
   const html=cuttingReportHTML(plan,parts,{projectName:'Plano de corte — Vértice Studio',backColor:params.backColor});
   const blob=new Blob([html],{type:'text/html;charset=utf-8'});
@@ -555,7 +560,7 @@ document.getElementById('export-labels').addEventListener('click',async()=>{
   const plan=getCutPlan();
   if(plan.unplaced.length)throw Error('Existem peças fora das chapas. Ajuste o plano antes de imprimir etiquetas.');
   const params=Object.fromEntries(new FormData(document.getElementById('form')));
-  const parts=calculateCabinet(params).parts;
+  const parts=getCutParts();
   const {cuttingReportHTML}=await import('./cutting-report.mjs');
   let html=cuttingReportHTML(plan,parts,{projectName:'Etiquetas — Vértice Marcenaria',backColor:params.backColor});
   html=html.replace('<body>','<body class="labels-only">');
