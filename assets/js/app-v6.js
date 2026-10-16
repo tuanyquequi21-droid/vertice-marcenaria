@@ -166,7 +166,7 @@ async function printQuote(id){
  <div class=head><div><div class=logo>VÉRTICE</div><div class=gold>MARCENARIA</div></div><div><b>ORÇAMENTO #${o.id}</b><br>${new Date(o.data_criacao||Date.now()).toLocaleDateString("pt-BR")}</div></div>
  <div class=box><b>Cliente:</b> ${esc(o.cliente_nome||"")}<br><b>CPF:</b> ${esc(cpf(o.cliente_cpf))}<br><b>Telefone:</b> ${esc(phone(o.cliente_telefone))}<br><b>E-mail:</b> ${esc(o.cliente_email||"")}<br><b>Endereço:</b> ${esc([o.cliente_endereco,o.cliente_numero,o.cliente_cidade,o.cliente_uf].filter(Boolean).join(", "))}</div>
  <h2>Projeto / móveis sob medida</h2>${projectHtml}
- <table><tr><td>Projeto / móveis sob medida</td><td class=right>${money(projeto)}</td></tr><tr><td>Montagem</td><td class=right>${money(mont)}</td></tr><tr><td>Frete / entrega</td><td class=right>${money(frete)}</td></tr><tr><td><b>VALOR TOTAL</b></td><td class="right total">${money(o.preco_final)}</td></tr></table>
+ <table><tr><td>Projeto / móveis sob medida</td><td class=right>${money(projeto)}</td></tr><tr><td>Frete / entrega</td><td class=right>${money(frete)}</td></tr><tr><td><b>VALOR TOTAL</b></td><td class="right total">${money(o.preco_final)}</td></tr></table>
  <div class="box terms"><b>Prazo de entrega:</b> ${o.prazo_entrega_dias?o.prazo_entrega_dias+" dias":"A combinar"}<br><b>Validade da proposta:</b> ${o.validade_dias||15} dias<br><b>Condições de pagamento:</b> ${pay}${o.observacoes_cliente?`<br><br><b>Observações:</b><div class=obs>${esc(o.observacoes_cliente)}</div>`:""}</div>
  <p style="margin-top:55px">_________________________________________<br>Cliente / aceite</p><button onclick=print()>Imprimir / Salvar PDF</button></body></html>`);w.document.close();
 }
