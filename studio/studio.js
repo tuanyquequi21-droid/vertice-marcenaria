@@ -139,14 +139,15 @@ function draw(p){if(typeof importedSketchupGroup!=='undefined')importedSketchupG
  for(let i=1;i<=s;i++)addBox(0,-H/2+i*H/(s+1),0,W-2*T,T,D-.006);
  for(let i=1;i<=dividers;i++)addBox(-W/2+T+i*(p.layout.bayWidth/1000)+(i-.5)*T,0,0,T,H-2*T,D-.006);
  if(p.layout.backType!=='none'){addBox(0,0,-D/2+.003,W,H,.006);group.children[group.children.length-1].material=backPanelMaterial;group.children[group.children.length-1].userData.partType='back';}
- const DH=p.layout.drawerHeight/1000,PH=p.layout.doorHeight/1000;
- if(doors&&drawers)addBox(0,-H/2+DH,0,W-2*T,T,D-.006);
+ const DH=p.layout.drawerHeight/1000,PH=p.layout.doorHeight/1000,PW=p.layout.doorAreaWidth/1000,PB=p.layout.doorAreaBottom/1000;
+ const doorX=p.layout.doorWidthZone==='left'?-W/4:p.layout.doorWidthZone==='right'?W/4:0;
+ if(doors&&(drawers||p.layout.doorHeightZone!=='full'))addBox(0,-H/2+p.layout.doorAreaBottom/1000,0,W-2*T,T,D-.006);
  for(let i=0;i<doors;i++){
-  const type=p.layout.doorType,overlap=Math.min(.03,W*.025),leafWidth=type==='sliding'?W/doors+overlap:W/doors-.006;
+  const type=p.layout.doorType,overlap=Math.min(.03,W*.025),leafWidth=type==='sliding'?PW/doors+overlap:PW/doors-.006;
   const flap=type==='flap-down',stacked=flap&&p.layout.flapLayout!=='horizontal';
-  const panelW=stacked?W-.006:leafWidth,panelH=stacked?PH/doors-.004:PH-.004;
-  const x=stacked?0:-W/2+(i+.5)*W/doors;
-  const y=stacked?DH/2-PH/2+(i+.5)*PH/doors:DH/2;
+  const panelW=stacked?PW-.006:leafWidth,panelH=stacked?PH/doors-.004:PH-.004;
+  const x=stacked?doorX:doorX-PW/2+(i+.5)*PW/doors;
+  const y=stacked?-H/2+PB+(i+.5)*PH/doors:-H/2+PB+PH/2;
   const z=D/2+.012+(type==='sliding'?(i%2)*(.012+T):0);
   addBox(x,y,z,panelW,panelH,T);
   const mesh=group.children[group.children.length-1];mesh.userData.partType='door';if(componentColorsActive)mesh.material=doorMaterial;fronts.push(mesh);addFrontDetails(group,mesh,'door',p.layout.handleType);
