@@ -642,8 +642,9 @@ function drawPresentation(){
   for(let j=1;j<=shelves;j++)presentationBox(g,0,-h/2+j*h/(shelves+1),0,w-2*t,t,d-.006);
   const div=Number(params.dividers||0);
   for(let j=1;j<=div;j++)presentationBox(g,-w/2+t+j*p.layout.bayWidth/1000+(j-.5)*t,0,0,t,h-2*t,d-.006);
-  const doors=Number(params.doors||0),dh=p.layout.drawerHeight/1000,ph=p.layout.doorHeight/1000,stack=p.layout.doorType==='flap-down'&&p.layout.flapLayout!=='horizontal';
-  for(let j=0;j<doors;j++){presentationBox(g,stack?0:-w/2+(j+.5)*w/doors,stack?dh/2-ph/2+(j+.5)*ph/doors:dh/2,d/2+.012,stack?w-.006:w/doors-.006,stack?ph/doors-.004:ph-.004,t);const front=g.children[g.children.length-1];front.userData.partType='door';if(componentColorsActive)front.material=doorMaterial;addFrontDetails(g,front,'door',p.layout.handleType);}
+  const doors=Number(params.doors||0),dh=p.layout.drawerHeight/1000,ph=p.layout.doorHeight/1000,pw=p.layout.doorAreaWidth/1000,pb=p.layout.doorAreaBottom/1000,doorX=p.layout.doorWidthZone==='left'?-w/4:p.layout.doorWidthZone==='right'?w/4:0,stack=p.layout.doorType==='flap-down'&&p.layout.flapLayout!=='horizontal';
+  if(doors&&(params.drawers>0||p.layout.doorHeightZone!=='full')){const partitionY=p.layout.doorHeightZone==='bottom'?pb+ph:pb;presentationBox(g,0,-h/2+partitionY,0,w-2*t,t,d-.006);}
+  for(let j=0;j<doors;j++){presentationBox(g,stack?doorX:doorX-pw/2+(j+.5)*pw/doors,stack?-h/2+pb+(j+.5)*ph/doors:-h/2+pb+ph/2,d/2+.012,stack?pw-.006:pw/doors-.006,stack?ph/doors-.004:ph-.004,t);const front=g.children[g.children.length-1];front.userData.partType='door';if(componentColorsActive)front.material=doorMaterial;addFrontDetails(g,front,'door',p.layout.handleType);}
   const drawers=Number(params.drawers||0),bayX=-w/2+t+(p.layout.drawerBay-.5)*p.layout.bayWidth/1000+(p.layout.drawerBay-1)*t;
   for(let j=0;j<drawers;j++){presentationBox(g,bayX,-h/2+(j+.5)*dh/drawers,d/2+.012,p.layout.bayWidth/1000-.006,dh/drawers-.004,t);const front=g.children[g.children.length-1];front.userData.partType='drawer';if(componentColorsActive)front.material=drawerMaterial;addFrontDetails(g,front,'drawer',p.layout.handleType);}
   addCabinetBase(g,w,h,d,p.layout.baseType,t);
