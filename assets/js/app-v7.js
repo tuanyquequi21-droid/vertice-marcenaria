@@ -182,7 +182,7 @@ const _v8SessionUI=sessionUI;
 sessionUI=async function(s){
  $('#login').classList.toggle('hidden',!!s);$('#app').classList.toggle('hidden',!s);
  if(!s){V8.perfil=null;V8.permissoes=new Set();return}
- if(!await loadPermissions()){await sb.auth.signOut();return}
+ if(!await loadPermissions()){console.error('Não foi possível validar permissões. Sessão mantida, mas módulos protegidos permanecem bloqueados.');$('#pageTitle').textContent='Configuração de acesso pendente';$('#content').innerHTML='<div class="panel"><div class="panel-body"><h3>Não foi possível validar suas permissões</h3><p>O login foi realizado, mas o banco de dados não possui a configuração de permissões esperada pelo sistema. Sua sessão foi preservada. É necessário restaurar a estrutura de usuários e permissões do projeto correto.</p></div></div>';return}
  await load();await loadUsersV8();applyPermissionUI();
  let first=['dashboard','leads','clientes','orcamentos','agenda','producao','materiais','financeiro','relatorios'].find(v8AllowedPage)||'dashboard';let savedPage='';try{savedPage=sessionStorage.getItem('vertice:page:'+s.user.id)||''}catch(e){console.warn('Navegação sem armazenamento de sessão',e)}page(savedPage&&v8AllowedPage(savedPage)&&['dashboard','leads','clientes','pipeline','agenda','orcamentos','producao','materiais','custos','financeiro','relatorios','comunicacoes','posvenda','usuarios'].includes(savedPage)?savedPage:first);
 }
