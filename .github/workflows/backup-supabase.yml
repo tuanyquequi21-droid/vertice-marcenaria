@@ -1,0 +1,44 @@
+name: Backup diario - Vertice Supabase
+
+on:
+  schedule:
+    - cron: '20 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Verificar credencial do banco
+        env:
+          DB_URL: ${{ secrets.VERTICE_DATABASE_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "::error::Configure o secret VERTICE_DATABASE_URL nas configuracoes do repositorio."
+            exit 1
+          fi
+
+      - name: Exportar banco PostgreSQL (dados e estrutura)
+        env:
+          DB_URL: ${{ secrets.VERTICE_DATABASE_URL }}
+        run: |
+          mkdir -p backup
+          docker run --rm \
+            -e DB_URL="$DB_URL" \
+            -v "$PWD/backup:/backup" \
+            postgres:17 \
+            sh -ec 'pg_dump --dbname="$DB_URL" --format=custom --no-owner --no-acl --file=/backup/vertice.dump'
+          test -s backup/vertice.dump
+          sha256sum backup/vertice.dump > backup/SHA256SUMS
+
+      - name: Guardar backup privado no GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: vertice-db-${{ github.run_id }}
+          path: backup/
+          retention-days: 30
+          if-no-files-found: error
