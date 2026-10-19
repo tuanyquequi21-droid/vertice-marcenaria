@@ -21,6 +21,10 @@ jobs:
             echo "::error::Configure o secret VERTICE_DATABASE_URL nas configuracoes do repositorio."
             exit 1
           fi
+          case "$DB_URL" in
+            *aikwxstfjftfgmmjhqyn*) ;;
+            *) echo "::error::A URL nao corresponde ao projeto Supabase oficial da Vertice."; exit 1 ;;
+          esac
 
       - name: Exportar banco PostgreSQL (dados e estrutura)
         env:
