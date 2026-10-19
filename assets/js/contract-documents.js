@@ -1,8 +1,10 @@
 /* Documentos comerciais da Vértice Gestão. Não altera orçamentos ou dados do banco. */
 async function verticeDocumento(id,tipo){
  const o=C.orcamentos.find(x=>Number(x.id)===Number(id));if(!o)return alert("Orçamento não encontrado.");
- const {data,error}=await sb.from("orcamento_projetos").select("*").eq("orcamento_id",id).order("ordem");
- if(error)return alert("Não foi possível carregar os módulos: "+error.message);
+ let data=[];
+ const {data:modulos,error}=await sb.from("orcamento_projetos").select("*").eq("orcamento_id",id).order("ordem");
+ if(!error) data=modulos||[];
+ else console.warn("Módulos do orçamento indisponíveis; documento será gerado com dados do orçamento.",error.message);
  const e=x=>esc(x??""),m=x=>money(x||0),date=new Date().toLocaleDateString("pt-BR");
  const blank=(name,wide=false)=>'<span class="fill '+(wide?'wide':'')+'" contenteditable="true" data-hint="'+e(name)+'">'+e(name)+'</span>';
  const item=(data||[]).map((p,i)=>'<li><b>'+e(p.nome||'Módulo '+(i+1))+'</b>'+(p.descricao_cliente?'<div>'+e(p.descricao_cliente).replace(/\n/g,'<br>')+'</div>':'')+'</li>').join('')||'<li>'+e(o.projeto||'Projeto conforme orçamento aprovado')+'</li>';
