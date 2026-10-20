@@ -9,8 +9,8 @@ const r=await sb.from('estoque_inteligente').select('*').eq('empresa_id',company
 }
 function draw(){
 $('#pageTitle').textContent='Estoque Inteligente';
-$('#content').innerHTML='<div class="panel"><div class="panel-head"><h3>Estoque Inteligente — sobras, chapas e ferragens</h3><button class="btn gold" id="stockNew">+ Novo item</button></div><div class="panel-body"><p>Cadastre medidas reais em milímetros e fotografe cada sobra para identificá-la.</p><input id="stockSearch" placeholder="Buscar material, cor ou localização"><div id="stockRows"></div></div></div>';
-$('#stockNew').onclick=()=>edit();$('#stockSearch').oninput=renderRows;renderRows();
+$('#content').innerHTML='<div class="panel"><div class="panel-head"><h3>Estoque Inteligente — sobras, chapas e ferragens</h3><button class="btn gold" id="stockFind">Encontrar sobra</button> <button class="btn gold" id="stockNew">+ Novo item</button></div><div class="panel-body"><p>Cadastre medidas reais em milímetros e fotografe cada sobra para identificá-la.</p><input id="stockSearch" placeholder="Buscar material, cor ou localização"><div id="stockRows"></div></div></div>';
+$('#stockNew').onclick=()=>edit();$('#stockFind').onclick=findOffcuts;$('#stockSearch').oninput=renderRows;renderRows();
 }
 function renderRows(){
 const s=($('#stockSearch')?.value||'').toLowerCase();
@@ -35,6 +35,27 @@ function label(id){
  const text='VÉRTICE MARCENARIA | ESTOQUE #'+x.id+' | '+x.nome+' | '+(x.cor||'')+' | '+(x.largura_mm||'-')+' × '+(x.comprimento_mm||'-')+' × '+(x.espessura_mm||'-')+' mm | '+(x.localizacao||'');
  const w=window.open('','_blank','width=650,height=450');if(!w)return alert('Permita a abertura de janelas para imprimir.');
  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Etiqueta estoque</title><style>body{font:16px Arial;padding:30px}section{border:2px solid #222;padding:20px;max-width:440px}h2{margin:0 0 12px}</style></head><body><section><h2>VÉRTICE MARCENARIA</h2><p>'+esc(text)+'</p></section><p><button onclick="window.print()">Imprimir etiqueta</button></p></body></html>');w.document.close();
+}
+
+function findOffcuts(){
+modal('Encontrar sobra de MDF','<p>Informe as dimensões da peça que precisa cortar. O resultado considera a folga da serra e o sentido do veio, mas deve ser confirmado antes de cortar.</p><div class="form-grid three"><label>Largura da peça (mm)<input id="sf_w" type="number" min="1" step="1" value="600"></label><label>Comprimento da peça (mm)<input id="sf_l" type="number" min="1" step="1" value="400"></label><label>Espessura (mm)<input id="sf_t" type="number" min="1" step="0.1" value="18"></label><label>Cor / acabamento<input id="sf_color" placeholder="Ex.: Branco TX"></label><label>Folga de corte (mm)<input id="sf_kerf" type="number" min="0" step="0.1" value="4"></label><label>Sentido do veio<select id="sf_grain"><option>Indiferente</option><option>No comprimento</option><option>Na largura</option></select></label></div><button class="btn gold" id="sf_search" type="button">Buscar compatíveis</button><div id="sf_results" style="margin-top:16px"></div>',()=>closeModal(),'Fechar');
+$('#sf_search').onclick=()=>{
+const w=Number($('#sf_w').value),l=Number($('#sf_l').value),t=Number($('#sf_t').value),kerf=Number($('#sf_kerf').value),color=$('#sf_color').value.trim().toLowerCase(),grain=$('#sf_grain').value;
+if(!(w>0&&l>0&&t>0)||kerf<0)return alert('Informe medidas válidas.');
+const options=items.filter(x=>['Sobra MDF','Chapa MDF'].includes(x.categoria)&&Number(x.quantidade)-reserved(x.id)>0&&Number(x.espessura_mm)===t&&(!color||String(x.cor||'').trim().toLowerCase()===color)).map(x=>{
+const a=Number(x.largura_mm),b=Number(x.comprimento_mm);
+const natural=a>=w+kerf&&b>=l+kerf;
+const rotated=a>=l+kerf&&b>=w+kerf;
+const stockGrain=x.veio||'Indiferente';
+const matchingGrain=grain==='Indiferente'||stockGrain==='Indiferente'||stockGrain===grain;
+const canRotate=grain==='Indiferente'&&stockGrain==='Indiferente';
+if(!matchingGrain||!(natural||(rotated&&canRotate)))return null;
+const rotatedOnly=!natural&&rotated;
+const loss=(a*b-w*l)/(a*b)*100;
+return {x,loss,rotatedOnly,area:a*b};
+}).filter(Boolean).sort((a,b)=>a.area-b.area);
+$('#sf_results').innerHTML=options.length?'<p><b>'+options.length+' opção(ões) compatível(is)</b> — ordenadas pela menor área de chapa.</p><div class="table-wrap"><table><thead><tr><th>Material</th><th>Medidas</th><th>Disponível</th><th>Aproveitamento teórico</th><th>Localização</th></tr></thead><tbody>'+options.map(o=>'<tr><td>'+esc(o.x.nome)+'<br>'+esc(o.x.cor||'')+'</td><td>'+esc(o.x.largura_mm)+' × '+esc(o.x.comprimento_mm)+' mm'+(o.rotatedOnly?' (girar 90°)':'')+'</td><td>'+esc(Number(o.x.quantidade)-reserved(o.x.id))+'</td><td>'+esc((100-o.loss).toFixed(1))+'%</td><td>'+esc(o.x.localizacao||'—')+'</td></tr>').join('')+'</tbody></table></div>':'<p>Nenhuma sobra cadastrada atende aos filtros. Confira a cor, espessura, dimensões e reservas.</p>';
+};
 }
 function edit(id){
 const x=items.find(z=>z.id===id)||{};photo=x.foto_data||null;
