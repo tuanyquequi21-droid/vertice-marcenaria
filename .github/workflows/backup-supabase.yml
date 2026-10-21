@@ -22,20 +22,23 @@ jobs:
             exit 1
           fi
           case "$DB_URL" in
-            *aikwxstfjftfgmmjhqyn*) ;;
-            *) echo "::error::A URL nao corresponde ao projeto Supabase oficial da Vertice."; exit 1 ;;
+            postgresql://*|postgres://*) ;;
+            *) echo "::error::VERTICE_DATABASE_URL deve comecar com postgresql:// ou postgres://"; exit 1 ;;
           esac
+          echo "Credencial presente e formato PostgreSQL valido (sem exibir a URL)."
 
       - name: Exportar banco PostgreSQL (dados e estrutura)
         env:
           DB_URL: ${{ secrets.VERTICE_DATABASE_URL }}
         run: |
           mkdir -p backup
+          echo "Iniciando exportacao do banco; a credencial nao sera exibida."
           docker run --rm \
             -e DB_URL="$DB_URL" \
+            -e PGSSLMODE=require \
             -v "$PWD/backup:/backup" \
             postgres:17 \
-            sh -ec 'pg_dump --dbname="$DB_URL" --format=custom --no-owner --no-acl --file=/backup/vertice.dump'
+            sh -ec 'pg_dump --dbname="$DB_URL" --format=custom --no-owner --no-acl --verbose --file=/backup/vertice.dump'
           test -s backup/vertice.dump
           sha256sum backup/vertice.dump > backup/SHA256SUMS
 
