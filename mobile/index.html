@@ -27,7 +27,7 @@ frame.addEventListener('load',()=>{
   const s=d.createElement('style');s.id='mobile-overrides';s.textContent=`
   @media(max-width:800px){
    html,body{overflow-x:hidden!important}
-   .app{display:block!important;min-height:100vh}
+   .app:not(.hidden){display:block!important;min-height:100vh!important}
    .sidebar{position:fixed!important;z-index:1000!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;width:100%!important;height:auto!important;max-height:74px!important;overflow-x:auto!important;overflow-y:hidden!important;display:flex!important;flex-direction:row!important;align-items:center!important;padding:5px 4px calc(5px + env(safe-area-inset-bottom))!important;background:#171714!important;border-top:1px solid #b18a3c!important;border-right:0!important}
    .sidebar .brand,.sidebar .collapse,.sidebar .logout{display:none!important}
    .sidebar nav{display:flex!important;flex-direction:row!important;gap:3px!important;width:max-content!important;min-width:100%!important}
