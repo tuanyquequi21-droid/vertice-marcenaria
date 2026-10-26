@@ -1,1 +1,35 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vértice Gestão</title></head><body><p>Conectando à Vértice Gestão…</p></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<title>Vértice Gestão</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:#fff;font-family:Arial,sans-serif}
+header{height:54px;padding:0 10px;display:flex;align-items:center;gap:12px;background:#111;border-bottom:1px solid #333;position:relative;z-index:2}
+button{border:0;background:transparent;color:#d9b56d;font-size:25px;width:42px;height:44px;border-radius:8px}
+.brand{font-size:16px;font-weight:700;flex:1}.hint{font-size:12px;color:#aaa}
+main{height:calc(100% - 54px);width:100%}iframe{display:block;border:0;width:100%;height:100%;background:#fff}
+</style>
+</head>
+<body>
+<header>
+<button id="back" aria-label="Voltar" title="Voltar">‹</button>
+<div class="brand">Vértice Gestão</div>
+<button id="reload" aria-label="Recarregar" title="Recarregar">↻</button>
+</header>
+<main><iframe id="app" title="Vértice Gestão" src="https://tuanyquequi21-droid.github.io/vertice-marcenaria/"></iframe></main>
+<script>
+const frame=document.getElementById('app');
+document.getElementById('back').addEventListener('click',()=>{
+  try {
+    const w=frame.contentWindow;
+    if(w && w.history.length>1) w.history.back();
+    else if(w) w.location.href='https://tuanyquequi21-droid.github.io/vertice-marcenaria/';
+  } catch(e) { frame.src='https://tuanyquequi21-droid.github.io/vertice-marcenaria/'; }
+});
+document.getElementById('reload').addEventListener('click',()=>{try{frame.contentWindow.location.reload()}catch(e){frame.src=frame.src}});
+</script>
+</body>
+</html>
