@@ -6,7 +6,7 @@
 <link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg" type="image/svg+xml"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Vértice Gestão Mobile</title>
 <style>
-:root{color-scheme:dark;--bg:#11110f;--panel:#1c1c19;--gold:#d4ad57;--muted:#aaa69b}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#f7f4ec}.shell{height:100dvh;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}header{height:54px;flex:0 0 54px;background:#171714;border-bottom:1px solid #39352a;display:flex;align-items:center;gap:10px;padding:0 14px}header button{border:1px solid #6b562c;background:#25231d;color:#e0bd69;border-radius:8px;padding:7px 10px;font-weight:700}header img{width:34px;height:34px}header strong{font-size:14px;letter-spacing:.15em}header small{display:block;font-size:9px;letter-spacing:.28em;color:var(--gold);margin-top:2px}.status{margin-left:auto;color:var(--muted);font-size:11px}main{flex:1;min-height:0;position:relative}iframe{border:0;width:100%;height:100%;display:block;background:#f5f5f2}#install{display:none;border:1px solid #9d7c37;background:var(--gold);color:#191710;border-radius:10px;padding:8px 12px;font-weight:700;font-size:12px}footer{padding:7px 12px calc(7px + env(safe-area-inset-bottom));text-align:center;font-size:10px;color:#8d897e;background:#171714;border-top:1px solid #39352a}.notice{display:none;position:absolute;z-index:3;top:8px;left:8px;right:8px;padding:12px;border-radius:12px;background:#27251f;border:1px solid #8c7137;color:#eee;font-size:13px}.notice button{float:right;background:none;color:#e2bf69;border:0;font-size:18px}noscript{padding:20px}
+:root{color-scheme:dark;--bg:#11110f;--panel:#1c1c19;--gold:#d4ad57;--muted:#aaa69b}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#f7f4ec}.shell{height:100dvh;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}header{height:54px;flex:0 0 54px;background:#171714;border-bottom:1px solid #39352a;display:flex;align-items:center;gap:10px;padding:0 14px}#mobileBack[hidden]{display:none!important}header button{border:1px solid #6b562c;background:#25231d;color:#e0bd69;border-radius:8px;padding:7px 10px;font-weight:700}header img{width:34px;height:34px}header strong{font-size:14px;letter-spacing:.15em}header small{display:block;font-size:9px;letter-spacing:.28em;color:var(--gold);margin-top:2px}.status{margin-left:auto;color:var(--muted);font-size:11px}main{flex:1;min-height:0;position:relative}iframe{border:0;width:100%;height:100%;display:block;background:#f5f5f2}#install{display:none;border:1px solid #9d7c37;background:var(--gold);color:#191710;border-radius:10px;padding:8px 12px;font-weight:700;font-size:12px}footer{padding:7px 12px calc(7px + env(safe-area-inset-bottom));text-align:center;font-size:10px;color:#8d897e;background:#171714;border-top:1px solid #39352a}.notice{display:none;position:absolute;z-index:3;top:8px;left:8px;right:8px;padding:12px;border-radius:12px;background:#27251f;border:1px solid #8c7137;color:#eee;font-size:13px}.notice button{float:right;background:none;color:#e2bf69;border:0;font-size:18px}noscript{padding:20px}
 </style>
 </head>
 <body><div class="shell">
@@ -21,7 +21,9 @@ installBtn.addEventListener('click',async()=>{if(!deferredPrompt)return;deferred
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 const notice=document.getElementById('notice');setTimeout(()=>notice.style.display='block',1600);document.getElementById('closeNotice').onclick=()=>notice.style.display='none';
 const frame=document.getElementById('gestao');
-document.getElementById('mobileBack').addEventListener('click',()=>{
+const mobileBack=document.getElementById('mobileBack');
+function syncBackButton(){try{const d=frame.contentDocument;const title=d&&d.getElementById('pageTitle');const app=d&&d.getElementById('app');mobileBack.hidden=!!(title&&title.textContent.trim().toLowerCase()==='dashboard')||!!(app&&app.classList.contains('hidden'));}catch(e){mobileBack.hidden=true}}
+mobileBack.addEventListener('click',()=>{
  try {
   const d=frame.contentDocument;
   if(d && d.querySelector('#app:not(.hidden)')) {
@@ -35,6 +37,21 @@ document.getElementById('mobileBack').addEventListener('click',()=>{
  } catch(e) {}
 });
 frame.addEventListener('load',()=>{
+ try {
+  const d=frame.contentDocument;
+  const menuBtn=d&&d.getElementById('studioMenuToggle');
+  const sidebar=d&&d.getElementById('sidebar');
+  if(menuBtn&&sidebar&&!menuBtn.dataset.mobileMenuBound){
+   menuBtn.dataset.mobileMenuBound='1';
+   menuBtn.addEventListener('click',()=>{const open=sidebar.classList.toggle('mobile-menu-expanded');menuBtn.setAttribute('aria-expanded',String(open));menuBtn.textContent=open?'✕ Fechar menu':'☰ Menu';});
+  }
+  if(d&&d.getElementById('pageTitle')&&!d.getElementById('mobile-back-sync')){
+   const marker=d.createElement('span');marker.id='mobile-back-sync';marker.hidden=true;d.body.appendChild(marker);
+   new MutationObserver(syncBackButton).observe(d.getElementById('pageTitle'),{childList:true,subtree:true,characterData:true});
+   syncBackButton();
+  }
+ }catch(e){}
+
  try{
   const d=frame.contentDocument;if(!d||d.getElementById('mobile-overrides'))return;
   const s=d.createElement('style');s.id='mobile-overrides';s.textContent=`
@@ -46,7 +63,7 @@ frame.addEventListener('load',()=>{
    .sidebar nav{display:flex!important;flex-direction:row!important;gap:3px!important;width:max-content!important;min-width:100%!important}
    .sidebar nav button,.sidebar nav a{flex:0 0 auto!important;min-width:68px!important;min-height:54px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;padding:5px 7px!important;border-radius:8px!important;font-size:19px!important}
    .sidebar nav button em,.sidebar nav a em{display:block!important;font-size:9px!important;font-style:normal!important;white-space:nowrap!important}
-   .sidebar nav button span,.sidebar nav a span{font-size:18px!important}
+   .sidebar nav button span,.sidebar nav a span{font-size:18px!important}\n   .sidebar.mobile-menu-expanded{max-height:70vh!important;height:auto!important;flex-direction:column!important;align-items:stretch!important;overflow-y:auto!important;overflow-x:hidden!important;padding-bottom:calc(8px + env(safe-area-inset-bottom))!important}\n   .sidebar.mobile-menu-expanded nav{width:100%!important;min-width:0!important;flex-direction:column!important;overflow:visible!important}\n   .sidebar.mobile-menu-expanded nav button,.sidebar.mobile-menu-expanded nav a{width:100%!important;min-width:0!important;min-height:44px!important;flex-direction:row!important;justify-content:flex-start!important;padding:9px 16px!important;font-size:15px!important}\n   .sidebar.mobile-menu-expanded nav button em,.sidebar.mobile-menu-expanded nav a em{font-size:13px!important}\n   .sidebar.mobile-menu-expanded .collapse{position:sticky!important;top:0!important;left:auto!important;width:100%!important;flex:0 0 42px!important}\n   .sidebar.mobile-menu-expanded .logout{width:100%!important;flex:0 0 42px!important}
    .main{margin-left:0!important;width:100%!important;min-height:100vh!important;padding-bottom:92px!important}
    .topbar{position:sticky!important;top:0!important;z-index:20!important;display:flex!important;flex-wrap:wrap!important;gap:8px!important;padding:12px!important}
    .topbar h2{font-size:20px!important;margin:0!important}
