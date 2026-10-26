@@ -82,8 +82,12 @@ frame.addEventListener('load',()=>{
    .top-actions{display:flex!important;flex-wrap:wrap!important;gap:6px!important;width:100%!important}
    .top-actions .btn{font-size:12px!important;padding:9px 10px!important}
    .content{padding:12px!important}
-   .modal{padding:10px!important;align-items:flex-end!important}
-   .modal-card{width:100%!important;max-width:100%!important;max-height:88vh!important;overflow:auto!important;border-radius:16px 16px 8px 8px!important}
+   .modal{position:fixed!important;inset:0!important;padding:10px!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important}
+   .modal-card{display:flex!important;flex-direction:column!important;width:100%!important;max-width:100%!important;height:auto!important;max-height:calc(100dvh - 20px)!important;min-height:0!important;overflow:hidden!important;margin:0!important;border-radius:16px!important}
+   .modal-head,.modal-actions{flex:0 0 auto!important}
+   #modalBody,.modal-body{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior:contain!important;touch-action:pan-y!important;padding:14px!important}
+   #modalBody .form-grid{min-width:0!important}
+   #modalBody label,#modalBody input,#modalBody select,#modalBody textarea{min-width:0!important;max-width:100%!important}
    input,select,textarea,button{max-width:100%}
    table{display:block!important;max-width:100%!important;overflow-x:auto!important}
   }
