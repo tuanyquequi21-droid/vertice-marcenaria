@@ -47,6 +47,21 @@ frame.addEventListener('load',()=>{
   }
   `;d.head.appendChild(s);
   const login=d.querySelector('#login');if(login){const st=d.createElement('style');st.textContent='@media(max-width:800px){.login-shell{min-height:100dvh!important;padding:18px!important}.login-card{width:100%!important;max-width:420px!important;padding:24px!important}}';d.head.appendChild(st)}
+  // Mobile-only cleanup: keep the original Gestión modules, omit Plus and make the landing screen useful.
+  const plus=[...d.querySelectorAll('a,button')].find(x=>/Gestão Plus/i.test(x.textContent||''));if(plus)plus.remove();
+  const dash=d.querySelector('nav button[data-page="dashboard"]');if(dash)dash.remove();
+  const app=d.querySelector('#app'),loginBox=d.querySelector('#login');
+  if(app&&!app.dataset.mobileRouteBound){
+    app.dataset.mobileRouteBound='1';
+    const goToUsefulPage=()=>{
+      if(!app.classList.contains('hidden')){
+        const active=d.querySelector('nav button[data-page="leads"]');
+        if(active && !active.dataset.mobileAutoOpened){active.dataset.mobileAutoOpened='1';active.click();}
+      }
+    };
+    new MutationObserver(goToUsefulPage).observe(app,{attributes:true,attributeFilter:['class']});
+    goToUsefulPage();
+  }
  }catch(e){console.warn('Mobile styling unavailable',e)}
 });
 </script></body></html>
