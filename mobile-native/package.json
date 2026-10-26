@@ -1,0 +1,17 @@
+{
+  "name": "vertice-gestao-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Android wrapper for the Vértice Gestão mobile web app",
+  "scripts": {
+    "sync": "cap sync android",
+    "open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/core": "^6.2.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.1"
+  }
+}
