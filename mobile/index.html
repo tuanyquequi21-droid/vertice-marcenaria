@@ -113,6 +113,30 @@ frame.addEventListener('load',()=>{
   `;d.head.appendChild(s);
   const login=d.querySelector('#login');if(login){const st=d.createElement('style');st.textContent='@media(max-width:800px){.login-shell{min-height:100dvh!important;padding:18px!important}.login-card{width:100%!important;max-width:420px!important;padding:24px!important}}';d.head.appendChild(st)}
   // Mobile-only cleanup: keep the original Gestión modules, omit Plus and make the landing screen useful.
+  // Mobile modal actions fallback: render buttons inside the scrollable form body.
+  const modalEl=d.querySelector('#modal'), modalBody=d.querySelector('#modalBody'), modalActions=d.querySelector('#modalActions');
+  if(modalEl&&modalBody&&modalActions&&!modalEl.dataset.mobileActionsBound){
+    modalEl.dataset.mobileActionsBound='1';
+    const syncMobileActions=()=>{
+      const open=!modalEl.classList.contains('hidden');
+      let bar=d.querySelector('#mobileModalActions');
+      if(!open){if(bar)bar.remove();return;}
+      if(!bar){
+        bar=d.createElement('div');bar.id='mobileModalActions';
+        bar.style.cssText='position:sticky;bottom:0;z-index:9999;display:flex;gap:10px;padding:12px 0 calc(12px + env(safe-area-inset-bottom));background:#fff;border-top:2px solid #c5a15a;margin-top:18px;';
+        modalBody.appendChild(bar);
+      }
+      bar.innerHTML='';
+      [...modalActions.querySelectorAll('button')].forEach((original,i,arr)=>{
+        const b=d.createElement('button');b.type='button';b.textContent=original.textContent.trim()||(i===0?'Cancelar':'Salvar');
+        b.style.cssText='display:block!important;visibility:visible!important;opacity:1!important;flex:1 1 0;min-width:0;min-height:52px;border-radius:8px;border:1px solid #b99a5a;background:'+(i===arr.length-1?'#c5a15a':'#f1eee7')+';color:#171717;font-size:16px;font-weight:700;padding:10px 8px;pointer-events:auto;';
+        b.addEventListener('click',()=>original.click());bar.appendChild(b);
+      });
+    };
+    new MutationObserver(syncMobileActions).observe(modalEl,{attributes:true,attributeFilter:['class']});
+    new MutationObserver(syncMobileActions).observe(modalActions,{childList:true,subtree:true,characterData:true});
+    syncMobileActions();
+  }
   // Preserve all original Gestão modules and navigation controls on mobile.
   const app=d.querySelector('#app'),loginBox=d.querySelector('#login');
   if(app&&!app.dataset.mobileRouteBound){
