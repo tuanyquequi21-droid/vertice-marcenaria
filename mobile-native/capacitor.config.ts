@@ -1,5 +1,5 @@
 import { CapacitorConfig } from '@capacitor/cli';
-// Rebuild APK with mobile menu, cache, and touch usability refinements.
+// Rebuild APK with mobile menu, touch usability, and quote-form scrolling fix.
 const config: CapacitorConfig = {
   appId: 'br.com.verticemarcenaria.gestao',
   appName: 'Vértice Gestão',
