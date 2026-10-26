@@ -26,16 +26,7 @@ const names=['1 · Cliente','2 · Projeto','3 · Materiais e serviços','4 · Va
 names.forEach((name,i)=>{const b=document.createElement('button');b.type='button';b.textContent=name;b.onclick=()=>show(i);top.appendChild(b)});
 root.insertBefore(top,root.firstChild);
 const tip=document.createElement('p');tip.className='vq-help';tip.textContent='Preencha por etapas. Os dados permanecem no formulário ao navegar; o salvamento continua sendo feito pelo botão original.';top.after(tip);
-const clientInputs=['qcpf','qe','qcep','qend','qnum','qcity','quf'];
-const clientParents=clientInputs.map(id=>document.getElementById(id)?.closest('label')).filter(Boolean);
-if(clientParents.length){
-const extra=document.createElement('div');extra.style.cssText='grid-column:1/-1;margin:6px 0';
-const toggle=document.createElement('button');toggle.type='button';toggle.className='btn small';toggle.textContent='Mostrar dados completos do cliente';
-let expanded=false;
-function sync(){clientParents.forEach(x=>x.style.display=expanded?'':'none');toggle.textContent=expanded?'Ocultar dados adicionais':'Mostrar dados completos do cliente'}
-toggle.onclick=()=>{expanded=!expanded;sync()};extra.appendChild(toggle);
-const grid=document.getElementById('qn')?.closest('.form-grid');if(grid)grid.prepend(extra);sync();
-}
+// Não ocultar campos do cliente: todos devem permanecer acessíveis e editáveis no celular.
 const projectSection=nodes[1].find(x=>x.classList?.contains('section-title'));
 if(projectSection){const p=document.createElement('p');p.className='vq-help';p.textContent='Descreva os móveis. Depois informe materiais e mão de obra para calcular a proposta.';projectSection.after(p);nodes[1].push(p)}
 const stock=document.createElement('div');stock.className='vq-stock';
