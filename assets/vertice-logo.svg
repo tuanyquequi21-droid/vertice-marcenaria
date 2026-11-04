@@ -1,1 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 210" role="img" aria-labelledby="t d"><title id="t">Vértice Marcenaria</title><desc id="d">Símbolo geométrico dourado inspirado em um V e em linhas de mobiliário planejado, acompanhado do nome Vértice Marcenaria.</desc><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f8dfa0"/><stop offset=".34" stop-color="#c18d3b"/><stop offset=".68" stop-color="#f1d18a"/><stop offset="1" stop-color="#986523"/></linearGradient></defs><g fill="none" stroke="url(#g)" stroke-linejoin="miter"><path stroke-width="9" d="M24 24H172V153H24Z"/><path stroke-width="12" d="M43 45 96 139 151 45"/><path stroke-width="7" d="M96 139V77L172 24M119 100 172 54"/><path stroke-width="5" d="M24 153H172"/></g><path d="M184 40H205" stroke="url(#g)" stroke-width="3"/><text x="220" y="104" fill="url(#g)" font-family="Arial,Helvetica,sans-serif" font-size="76" font-weight="600" letter-spacing="8">VÉRTICE</text><path d="M222 125H710" stroke="url(#g)" stroke-width="2"/><text x="224" y="166" fill="url(#g)" font-family="Arial,Helvetica,sans-serif" font-size="28" letter-spacing="13">MARCENARIA</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-labelledby="title desc">
+<title id="title">Vértice Marcenaria</title><desc id="desc">Logotipo dourado Vértice com símbolo arquitetônico tridimensional e assinatura Planejamento, Design e Qualidade.</desc>
+<defs>
+ <linearGradient id="gold" x1="0" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#fff0b0"/><stop offset=".22" stop-color="#e5b85c"/><stop offset=".48" stop-color="#a96b1d"/><stop offset=".72" stop-color="#f6d47e"/><stop offset="1" stop-color="#8d5615"/></linearGradient>
+ <linearGradient id="face" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffedac"/><stop offset=".45" stop-color="#d69a38"/><stop offset="1" stop-color="#8b5010"/></linearGradient>
+</defs>
+<g transform="translate(0 0)" stroke="#8b571b" stroke-width="2.2" stroke-linejoin="miter">
+ <path fill="url(#face)" d="M190 58H345L462 270 532 194 532 350H405Z"/>
+ <path fill="url(#gold)" d="M345 58 462 270 405 350 248 350 92 116 190 58Z" opacity=".96"/>
+ <path fill="url(#gold)" d="M350 124 617 20 617 91 434 166 434 296 399 350 399 174Z"/>
+ <path fill="url(#face)" d="M555 100 706 174 706 284 555 350Z"/>
+ <path fill="none" stroke="url(#gold)" stroke-width="10" d="M350 124 617 20 617 91"/>
+ <path fill="none" stroke="url(#gold)" stroke-width="5" d="M20 286H315M716 286H880"/>
+ <path fill="none" stroke="url(#gold)" stroke-width="5" d="M575 180V260"/>
+</g>
+<text x="450" y="430" text-anchor="middle" fill="url(#gold)" stroke="#8c591b" stroke-width="1.1" paint-order="stroke" font-family="Arial,Helvetica,sans-serif" font-size="92" font-weight="600" letter-spacing="13">VÉRTICE</text>
+<path d="M35 470H220M680 470H865" stroke="url(#gold)" stroke-width="3"/>
+<text x="450" y="485" text-anchor="middle" fill="url(#gold)" font-family="Arial,Helvetica,sans-serif" font-size="35" letter-spacing="16">MARCENARIA</text>
+<text x="450" y="535" text-anchor="middle" fill="url(#gold)" font-family="Arial,Helvetica,sans-serif" font-size="19" letter-spacing="8">PLANEJAMENTO • DESIGN • QUALIDADE</text>
+</svg>
