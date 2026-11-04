@@ -54,6 +54,7 @@
 </main>
 <footer class="footer"><div class="wrap footer-row"><div><a href="#inicio" class="brand"><img class="brand-logo" src="assets/vertice-logo.svg" alt="Vértice Marcenaria"></a><p>Tudo começa nos detalhes.</p></div><div class="footer-links"><a href="#servicos">Soluções</a><a href="#projetos">Inspirações</a><a href="#contato">Contato</a><a href="privacidade.html">Privacidade</a><a href="https://www.instagram.com/vertice.marcenaria/" target="_blank" rel="noopener">Instagram ↗</a></div><p>© <span id="year"></span> Vértice Marcenaria. Todos os direitos reservados.</p></div></footer>
 
+<div class="toast" id="toast" role="status"></div>
 <script>
 const INSTAGRAM_URL='https://www.instagram.com/vertice.marcenaria/';
 const WHATSAPP_URL='https://wa.me/555198995583?text=';
@@ -61,7 +62,8 @@ const $=id=>document.getElementById(id);
 $('year').textContent=new Date().getFullYear();
 $('menuBtn').addEventListener('click',()=>$('navlinks').classList.toggle('show'));
 document.querySelectorAll('#navlinks a').forEach(a=>a.addEventListener('click',()=>$('navlinks').classList.remove('show')));
-function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),3500)}\nfunction routeWhatsApp(text){window.open(WHATSAPP_URL+encodeURIComponent(text),'_blank','noopener');toast('Mensagem preparada para enviar à Vértice pelo WhatsApp.')}
+function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),3500)}
+function routeWhatsApp(text){window.open(WHATSAPP_URL+encodeURIComponent(text),'_blank','noopener');toast('Mensagem preparada para enviar à Vértice pelo WhatsApp.')}
 $('leadForm').addEventListener('submit',e=>{e.preventDefault();if(!$('privacy').checked)return;const data={nome:$('name').value.trim(),whatsapp:$('phone').value.trim(),cidade:$('city').value.trim(),ambiente:$('type').value,etapa:$('stage').value,prazo:$('time').value,detalhes:$('details').value.trim()};const text='Olá, Vértice Marcenaria! Gostaria de conversar sobre um projeto.\n\nNome: '+data.nome+'\nWhatsApp: '+data.whatsapp+'\nCidade: '+data.cidade+'\nAmbiente: '+data.ambiente+'\nEtapa: '+data.etapa+'\nPrazo: '+data.prazo+(data.detalhes?'\nDetalhes: '+data.detalhes:'')+'\n\nOrigem: site da Vértice';routeWhatsApp(text)});
 </script>
 </body></html>
