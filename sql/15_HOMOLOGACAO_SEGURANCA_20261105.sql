@@ -87,6 +87,15 @@ $;
 revoke all on function public.listar_orcamento_versoes_seguras() from public, anon;
 grant execute on function public.listar_orcamento_versoes_seguras() to authenticated, service_role;
 
+-- Endurece os privilégios padrão de objetos criados pelo papel postgres.
+-- Aplicado em migration própria no Supabase em 2026-11-05.
+alter default privileges for role postgres in schema public
+revoke all on tables from anon, authenticated;
+alter default privileges for role postgres in schema public
+revoke all on sequences from anon, authenticated;
+alter default privileges for role postgres in schema public
+revoke execute on functions from anon, authenticated;
+
 -- PENDÊNCIA: ALTER DEFAULT PRIVILEGES para os proprietários postgres e
 -- supabase_admin não foi aplicado pela integração (permissão negada).
 -- Deve ser executado por um papel proprietário autorizado após validar
