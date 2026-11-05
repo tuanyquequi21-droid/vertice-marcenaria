@@ -1,0 +1,92 @@
+name: Build Vértice Gestão APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-android-apk.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Create Android app container
+        shell: bash
+        run: |
+          mkdir -p mobile-shell/www
+          cd mobile-shell
+          npm init -y
+          npm install @capacitor/core @capacitor/android
+          npm install --save-dev @capacitor/cli
+          cat > capacitor.config.ts <<'EOF'
+          import type { CapacitorConfig } from '@capacitor/cli';
+
+          const config: CapacitorConfig = {
+            appId: 'br.com.verticemarcenaria.gestao',
+            appName: 'Vértice Gestão',
+            webDir: 'www',
+            server: {
+              url: 'https://gestao.verticemarcenaria.com.br',
+              cleartext: false,
+              allowNavigation: [
+                'gestao.verticemarcenaria.com.br',
+                'verticemarcenaria.com.br'
+              ]
+            }
+          };
+
+          export default config;
+          EOF
+          cat > www/index.html <<'EOF'
+          <!doctype html>
+          <html lang="pt-BR">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+            <meta name="theme-color" content="#111111">
+            <title>Vértice Gestão</title>
+            <style>
+              html,body{margin:0;width:100%;height:100%;background:#111;color:#d5b46a;font:16px Arial,sans-serif}
+              .loading{height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+              .mark{width:58px;height:58px;border:2px solid #b99a58;border-radius:14px;display:grid;place-items:center;font-size:30px;font-weight:bold}
+              .sub{color:#aaa;font-size:13px}
+            </style>
+          </head>
+          <body>
+            <main class="loading"><div class="mark">V</div><strong>VÉRTICE GESTÃO</strong><span class="sub">Carregando seu ambiente...</span></main>
+          </body>
+          </html>
+          EOF
+          npx cap add android
+          npx cap sync android
+
+      - name: Build debug APK
+        run: |
+          cd mobile-shell/android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Publish APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vertice-gestao-android-apk
+          path: mobile-shell/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
