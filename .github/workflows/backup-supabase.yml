@@ -47,5 +47,5 @@ jobs:
         with:
           name: vertice-db-${{ github.run_id }}
           path: backup/
-          retention-days: 30
+          retention-days: 90
           if-no-files-found: error
