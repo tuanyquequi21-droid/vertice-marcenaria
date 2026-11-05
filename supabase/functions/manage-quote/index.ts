@@ -42,9 +42,9 @@ Deno.serve(async(req)=>{
     const {data:q}=await admin.from("orcamentos").select("id").eq("id",qid).eq("empresa_id",profile.empresa_id).maybeSingle();
     if(!q)return json({error:"Orçamento não encontrado."},404);
     const [pr,ir,lr]=await Promise.all([
-     admin.from("orcamento_projetos").select("nome,descricao_cliente,ordem").eq("orcamento_id",qid).eq("empresa_id",profile.empresa_id).order("ordem"),
-     admin.from("orcamento_itens").select("material_id,quantidade,unidade").eq("orcamento_id",qid).eq("empresa_id",profile.empresa_id),
-     admin.from("orcamento_mao_obra").select("funcionario_id,funcao_id,unidade,quantidade_pessoas,quantidade_tempo").eq("orcamento_id",qid).eq("empresa_id",profile.empresa_id)
+     admin.from("orcamento_projetos").select("nome,descricao_cliente,ordem").eq("orcamento_id",qid).order("ordem"),
+     admin.from("orcamento_itens").select("material_id,quantidade,unidade").eq("orcamento_id",qid),
+     admin.from("orcamento_mao_obra").select("funcionario_id,funcao_id,unidade,quantidade_pessoas,quantidade_tempo").eq("orcamento_id",qid)
     ]);
     detail={projects:pr.data||[],materials:ir.data||[],labor:lr.data||[]};
    }
@@ -65,23 +65,43 @@ Deno.serve(async(req)=>{
   if((mr as any).error||(fr as any).error)return json({error:"Não foi possível consultar os custos internos."},500);
   const matMap=new Map(((mr as any).data||[]).map((x:any)=>[Number(x.id),x])), funMap=new Map(((fr as any).data||[]).map((x:any)=>[Number(x.id),x]));
   let materiais=0,mao=0;
-  const matRows=mats.map((x:any)=>{const m:any=matMap.get(num(x.material_id));if(!m)return null;const q=Math.max(0,num(x.quantidade));const p=num(m.preco_custo);materiais+=q*p;return{empresa_id:profile.empresa_id,tipo:"Material",descricao:m.nome,material_id:m.id,nome_material:m.nome,categoria_material:m.categoria||"",unidade:m.unidade||"unidade",quantidade:q,valor_unitario:p,subtotal:q*p};}).filter(Boolean);
-  const labRows=labs.map((x:any)=>{const f:any=funMap.get(num(x.funcao_id));if(!f)return null;const pe=Math.max(1,num(x.quantidade_pessoas,1)),t=Math.max(0,num(x.quantidade_tempo));const p=num(f.valor);mao+=pe*t*p;return{empresa_id:profile.empresa_id,funcionario_id:num(x.funcionario_id)||null,funcionario_nome:clean(x.funcionario_nome),funcao_id:f.id,funcao_nome:f.nome,unidade:f.unidade,quantidade_pessoas:pe,quantidade_tempo:t,valor_unitario:p,subtotal:pe*t*p};}).filter(Boolean);
-  let old:any=null;if(editing){const r=await admin.from("orcamentos").select("*").eq("id",qid).eq("empresa_id",profile.empresa_id).single();if(r.error)return json({error:"Orçamento não encontrado."},404);old=r.data;}
-  const margem=can("orcamentos.alterar_margem")?Math.max(0,num(body.margem,old?.margem_lucro??30)):num(old?.margem_lucro,30);
+  let old:any=null, oldItems:any[]=[], oldLabor:any[]=[];
+  if(editing){
+   const r=await admin.from("orcamentos").select("*").eq("id",qid).eq("empresa_id",profile.empresa_id).single();
+   if(r.error)return json({error:"Orçamento não encontrado."},404);
+   old=r.data;
+   const [oi,ol]=await Promise.all([
+    admin.from("orcamento_itens").select("material_id,valor_unitario,custo_unitario").eq("orcamento_id",qid),
+    admin.from("orcamento_mao_obra").select("funcao_id,valor_unitario").eq("orcamento_id",qid)
+   ]);
+   if(oi.error||ol.error)return json({error:"Não foi possível recuperar os custos já registrados neste orçamento."},500);
+   oldItems=oi.data||[]; oldLabor=ol.data||[];
+  }
+  const oldMaterialPrice=new Map<number,number>();
+  for(const x of oldItems){if(x.material_id!=null&&!oldMaterialPrice.has(Number(x.material_id)))oldMaterialPrice.set(Number(x.material_id),num(x.valor_unitario,num(x.custo_unitario)));}
+  const oldLaborPrice=new Map<number,number>();
+  for(const x of oldLabor){if(x.funcao_id!=null&&!oldLaborPrice.has(Number(x.funcao_id)))oldLaborPrice.set(Number(x.funcao_id),num(x.valor_unitario));}
+  const matRows=mats.map((x:any)=>{const m:any=matMap.get(num(x.material_id));if(!m)return null;const q=Math.max(0,num(x.quantidade));const p=oldMaterialPrice.has(Number(m.id))?oldMaterialPrice.get(Number(m.id))!:num(m.preco_custo);materiais+=q*p;return{empresa_id:profile.empresa_id,tipo:"Material",descricao:m.nome,material_id:m.id,nome_material:m.nome,categoria_material:m.categoria||"",unidade:m.unidade||"unidade",quantidade:q,valor_unitario:p,subtotal:q*p};}).filter(Boolean);
+  const labRows=labs.map((x:any)=>{const f:any=funMap.get(num(x.funcao_id));if(!f)return null;const pe=Math.max(1,num(x.quantidade_pessoas,1)),t=Math.max(0,num(x.quantidade_tempo));const p=oldLaborPrice.has(Number(f.id))?oldLaborPrice.get(Number(f.id))!:num(f.valor);mao+=pe*t*p;return{funcionario_id:num(x.funcionario_id)||null,funcionario_nome:clean(x.funcionario_nome),funcao_id:f.id,funcao_nome:f.nome,unidade:f.unidade,quantidade_pessoas:pe,quantidade_tempo:t,valor_unitario:p,subtotal:pe*t*p};}).filter(Boolean);
+  const margem=can("orcamentos.alterar_margem")?Math.max(0,Math.min(95,num(body.margem,old?.margem_lucro??30))):num(old?.margem_lucro,30);
   const mont=can("orcamentos.ver_custos")?Math.max(0,num(body.montagem,old?.valor_montagem||0)):num(old?.valor_montagem,0);
   const frete=can("orcamentos.ver_custos")?Math.max(0,num(body.frete,old?.detalhes_calculo?.freteCliente||0)):num(old?.detalhes_calculo?.freteCliente,0);
   const op=can("orcamentos.ver_custos")?Math.max(0,num(body.outros,old?.detalhes_calculo?.operacionais||0)):num(old?.detalhes_calculo?.operacionais,0);
-  const custo=materiais+mao+mont+frete+op, m=margem/100, avista=m<1?custo/(1-m):custo;
-  const pay=clean(body.forma_pagamento)||old?.forma_pagamento||"Pix", parc=Math.max(1,Math.round(num(body.numero_parcelas,old?.numero_parcelas||1)));
-  const taxa=can("orcamentos.ver_custos")?Math.max(0,num(body.taxa,old?.taxa_parcelamento??9)):num(old?.taxa_parcelamento,9);
-  const valorTaxa=(pay==="Parcelado"&&parc>1)?avista*(taxa/100):0, final=avista+valorTaxa, lucro=avista-custo;
+  const depreciacaoPercentual=Math.max(0,Math.min(5,num(body.depreciacao_percentual,old?.detalhes_calculo?.depreciacaoPercentual??2)));
+  const baseCusto=materiais+mao+mont+frete+op, margemFator=margem/100;
+  const precoBase=margemFator<1?baseCusto/(1-margemFator):baseCusto;
+  const depreciacao=depreciacaoPercentual>0?Math.max(20,precoBase*depreciacaoPercentual/100):0;
+  const custo=baseCusto+depreciacao, m=margem/100, avista=m<1?custo/(1-m):custo;
+  const pay=clean(body.forma_pagamento)||old?.forma_pagamento||"Pix", parc=Math.max(1,Math.min(21,Math.round(num(body.numero_parcelas,old?.numero_parcelas||1))));
+  const rates=[0,4.15,6.49,7.19,7.99,8.69,9.49,9.99,10.99,11.99,12.49,13.35,13.39,16.39,17.05,17.73,18.44,19.17,19.94,20.74,21.57,22.43];
+  const taxa=pay==="Débito"?2.35:pay==="Crédito à vista"?4.15:pay==="Parcelado"?rates[Math.max(2,Math.min(21,parc))]:0;
+  const final=taxa>0?avista/(1-taxa/100):avista, valorTaxa=final-avista, lucro=avista-custo;
   if(action==="preview")return json({preco_final:final,numero_parcelas:parc,valor_parcela:final/parc,forma_pagamento:pay});
-  const p:any={empresa_id:profile.empresa_id,lead_id:num(body.lead_id)||old?.lead_id||null,cliente_nome:clean(body.cliente_nome),cliente_cpf:clean(body.cliente_cpf),cliente_telefone:clean(body.cliente_telefone),cliente_email:clean(body.cliente_email),cliente_cep:clean(body.cliente_cep),cliente_endereco:clean(body.cliente_endereco),cliente_numero:clean(body.cliente_numero),cliente_cidade:clean(body.cliente_cidade),cliente_uf:clean(body.cliente_uf).toUpperCase(),projeto:projects.map((x:any)=>clean(x.nome)).join(" + "),observacoes_internas:clean(body.observacoes_internas),observacoes_cliente:clean(body.observacoes_cliente),valor_montagem:mont,prazo_entrega_dias:num(body.prazo_entrega_dias)||null,validade_dias:num(body.validade_dias,15),custo_producao:custo,valor_sem_margem:custo,valor_antes_parcelamento:avista,valor_lucro:lucro,preco_final:final,valor_final_parcelado:final,reinvestimento_materials:materiais,margem_lucro:margem,forma_pagamento:pay,numero_parcelas:parc,taxa_parcelamento:taxa,condicoes_pagamento:pay==="Parcelado"?`${parc}x de ${(final/parc).toFixed(2)}`:pay,detalhes_calculo:{materiais,maoObra:mao,freteCliente:frete,operacionais:op,valorTaxa,lucro}};
+  const p:any={empresa_id:profile.empresa_id,lead_id:num(body.lead_id)||old?.lead_id||null,cliente_nome:clean(body.cliente_nome),cliente_cpf:clean(body.cliente_cpf),cliente_telefone:clean(body.cliente_telefone),cliente_email:clean(body.cliente_email),cliente_cep:clean(body.cliente_cep),cliente_endereco:clean(body.cliente_endereco),cliente_numero:clean(body.cliente_numero),cliente_cidade:clean(body.cliente_cidade),cliente_uf:clean(body.cliente_uf).toUpperCase(),projeto:projects.map((x:any)=>clean(x.nome)).join(" + "),observacoes_internas:clean(body.observacoes_internas),observacoes_cliente:clean(body.observacoes_cliente),valor_montagem:mont,prazo_entrega_dias:num(body.prazo_entrega_dias)||null,validade_dias:num(body.validade_dias,15),custo_producao:custo,valor_sem_margem:custo,valor_antes_parcelamento:avista,valor_lucro:lucro,preco_final:final,valor_final_parcelado:final,reinvestimento_materials:materiais,margem_lucro:margem,forma_pagamento:pay,numero_parcelas:parc,taxa_parcelamento:taxa,condicoes_pagamento:pay==="Parcelado"?`${parc}x de ${(final/parc).toFixed(2)}`:pay,detalhes_calculo:{materiais,maoObra:mao,freteCliente:frete,operacionais:op,depreciacao,depreciacaoPercentual,valorTaxa,lucro}};
   const qr=editing?await admin.from("orcamentos").update(p).eq("id",qid).eq("empresa_id",profile.empresa_id).select("id,preco_final,status").single():await admin.from("orcamentos").insert({...p,status:"Rascunho"}).select("id,preco_final,status").single();
   if(qr.error)return json({error:qr.error.message},400);const oid=qr.data.id;
-  await Promise.all([admin.from("orcamento_itens").delete().eq("orcamento_id",oid).eq("empresa_id",profile.empresa_id),admin.from("orcamento_mao_obra").delete().eq("orcamento_id",oid).eq("empresa_id",profile.empresa_id),admin.from("orcamento_projetos").delete().eq("orcamento_id",oid).eq("empresa_id",profile.empresa_id)]);
-  if(projects.length){const r=await admin.from("orcamento_projetos").insert(projects.map((x:any,i:number)=>({empresa_id:profile.empresa_id,orcamento_id:oid,nome:clean(x.nome),descricao_cliente:clean(x.descricao_cliente),ordem:i})));if(r.error)return json({error:r.error.message},400)}
+  await Promise.all([admin.from("orcamento_itens").delete().eq("orcamento_id",oid),admin.from("orcamento_mao_obra").delete().eq("orcamento_id",oid),admin.from("orcamento_projetos").delete().eq("orcamento_id",oid)]);
+  if(projects.length){const r=await admin.from("orcamento_projetos").insert(projects.map((x:any,i:number)=>({orcamento_id:oid,nome:clean(x.nome),descricao_cliente:clean(x.descricao_cliente),ordem:i})));if(r.error)return json({error:r.error.message},400)}
   if(matRows.length){const r=await admin.from("orcamento_itens").insert(matRows.map((x:any)=>({...x,orcamento_id:oid})));if(r.error)return json({error:r.error.message},400)}
   if(labRows.length){const r=await admin.from("orcamento_mao_obra").insert(labRows.map((x:any)=>({...x,orcamento_id:oid})));if(r.error)return json({error:r.error.message},400)}
   return json({id:oid,preco_final:qr.data.preco_final,status:qr.data.status});
