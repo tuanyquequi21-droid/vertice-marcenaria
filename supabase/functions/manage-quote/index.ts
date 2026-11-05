@@ -65,18 +65,17 @@ Deno.serve(async(req)=>{
   if((mr as any).error||(fr as any).error)return json({error:"Não foi possível consultar os custos internos."},500);
   const matMap=new Map(((mr as any).data||[]).map((x:any)=>[Number(x.id),x])), funMap=new Map(((fr as any).data||[]).map((x:any)=>[Number(x.id),x]));
   let materiais=0,mao=0;
-  let old:any=null, oldItems:any[]=[], oldLabor:any[]=[], oldProjects:any[]=[];
+  let old:any=null, oldItems:any[]=[], oldLabor:any[]=[];
   if(editing){
    const r=await admin.from("orcamentos").select("*").eq("id",qid).eq("empresa_id",profile.empresa_id).single();
    if(r.error)return json({error:"Orçamento não encontrado."},404);
    old=r.data;
-   const [oi,ol,opj]=await Promise.all([
-    admin.from("orcamento_itens").select("id,material_id,valor_unitario,custo_unitario").eq("orcamento_id",qid),
-    admin.from("orcamento_mao_obra").select("id,funcao_id,valor_unitario").eq("orcamento_id",qid),
-    admin.from("orcamento_projetos").select("id").eq("orcamento_id",qid)
+   const [oi,ol]=await Promise.all([
+    admin.from("orcamento_itens").select("material_id,valor_unitario,custo_unitario").eq("orcamento_id",qid),
+    admin.from("orcamento_mao_obra").select("funcao_id,valor_unitario").eq("orcamento_id",qid)
    ]);
-   if(oi.error||ol.error||opj.error)return json({error:"Não foi possível recuperar os dados já registrados neste orçamento."},500);
-   oldItems=oi.data||[]; oldLabor=ol.data||[]; oldProjects=opj.data||[];
+   if(oi.error||ol.error)return json({error:"Não foi possível recuperar os custos já registrados neste orçamento."},500);
+   oldItems=oi.data||[]; oldLabor=ol.data||[];
   }
   const oldMaterialPrice=new Map<number,number>();
   for(const x of oldItems){if(x.material_id!=null&&!oldMaterialPrice.has(Number(x.material_id)))oldMaterialPrice.set(Number(x.material_id),num(x.valor_unitario,num(x.custo_unitario)));}
@@ -101,22 +100,10 @@ Deno.serve(async(req)=>{
   const p:any={empresa_id:profile.empresa_id,lead_id:num(body.lead_id)||old?.lead_id||null,cliente_nome:clean(body.cliente_nome),cliente_cpf:clean(body.cliente_cpf),cliente_telefone:clean(body.cliente_telefone),cliente_email:clean(body.cliente_email),cliente_cep:clean(body.cliente_cep),cliente_endereco:clean(body.cliente_endereco),cliente_numero:clean(body.cliente_numero),cliente_cidade:clean(body.cliente_cidade),cliente_uf:clean(body.cliente_uf).toUpperCase(),projeto:projects.map((x:any)=>clean(x.nome)).join(" + "),observacoes_internas:clean(body.observacoes_internas),observacoes_cliente:clean(body.observacoes_cliente),valor_montagem:mont,prazo_entrega_dias:num(body.prazo_entrega_dias)||null,validade_dias:num(body.validade_dias,15),custo_producao:custo,valor_sem_margem:custo,valor_antes_parcelamento:avista,valor_lucro:lucro,preco_final:final,valor_final_parcelado:final,reinvestimento_materials:materiais,margem_lucro:margem,forma_pagamento:pay,numero_parcelas:parc,taxa_parcelamento:taxa,condicoes_pagamento:pay==="Parcelado"?`${parc}x de ${(final/parc).toFixed(2)}`:pay,detalhes_calculo:{materiais,maoObra:mao,freteCliente:frete,operacionais:op,depreciacao,depreciacaoPercentual,valorTaxa,lucro}};
   const qr=editing?await admin.from("orcamentos").update(p).eq("id",qid).eq("empresa_id",profile.empresa_id).select("id,preco_final,status").single():await admin.from("orcamentos").insert({...p,status:"Rascunho"}).select("id,preco_final,status").single();
   if(qr.error)return json({error:qr.error.message},400);const oid=qr.data.id;
-  // Grava os novos itens antes de remover os anteriores. Se uma inserção falhar,
-  // os novos registros parciais são revertidos e os antigos permanecem intactos.
-  const pr=projects.length?await admin.from("orcamento_projetos").insert(projects.map((x:any,i:number)=>({orcamento_id:oid,nome:clean(x.nome),descricao_cliente:clean(x.descricao_cliente),ordem:i}))).select("id"):{data:[],error:null};
-  const ir=matRows.length?await admin.from("orcamento_itens").insert(matRows.map((x:any)=>({...x,orcamento_id:oid}))).select("id"):{data:[],error:null};
-  const lr=labRows.length?await admin.from("orcamento_mao_obra").insert(labRows.map((x:any)=>({...x,orcamento_id:oid}))).select("id"):{data:[],error:null};
-  if(pr.error||ir.error||lr.error){
-   if(pr.data?.length)await admin.from("orcamento_projetos").delete().in("id",pr.data.map((x:any)=>x.id));
-   if(ir.data?.length)await admin.from("orcamento_itens").delete().in("id",ir.data.map((x:any)=>x.id));
-   if(lr.data?.length)await admin.from("orcamento_mao_obra").delete().in("id",lr.data.map((x:any)=>x.id));
-   return json({error:pr.error?.message||ir.error?.message||lr.error?.message||"Falha ao gravar itens do orçamento."},400);
-  }
-  if(editing){
-   if(oldProjects.length)await admin.from("orcamento_projetos").delete().in("id",oldProjects.map((x:any)=>x.id));
-   if(oldItems.length)await admin.from("orcamento_itens").delete().in("id",oldItems.map((x:any)=>x.id));
-   if(oldLabor.length)await admin.from("orcamento_mao_obra").delete().in("id",oldLabor.map((x:any)=>x.id));
-  }
+  await Promise.all([admin.from("orcamento_itens").delete().eq("orcamento_id",oid),admin.from("orcamento_mao_obra").delete().eq("orcamento_id",oid),admin.from("orcamento_projetos").delete().eq("orcamento_id",oid)]);
+  if(projects.length){const r=await admin.from("orcamento_projetos").insert(projects.map((x:any,i:number)=>({orcamento_id:oid,nome:clean(x.nome),descricao_cliente:clean(x.descricao_cliente),ordem:i})));if(r.error)return json({error:r.error.message},400)}
+  if(matRows.length){const r=await admin.from("orcamento_itens").insert(matRows.map((x:any)=>({...x,orcamento_id:oid})));if(r.error)return json({error:r.error.message},400)}
+  if(labRows.length){const r=await admin.from("orcamento_mao_obra").insert(labRows.map((x:any)=>({...x,orcamento_id:oid})));if(r.error)return json({error:r.error.message},400)}
   return json({id:oid,preco_final:qr.data.preco_final,status:qr.data.status});
  }catch(e){console.error(e);return json({error:e instanceof Error?e.message:"Erro interno."},500)}
 });

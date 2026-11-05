@@ -5,7 +5,7 @@ let items=[],company=null,photo=null,reservas=[];
 async function loadStock(){
 const u=await sb.auth.getUser();if(!u.data.user)throw Error('Faça login.');
 const p=await sb.from('perfis').select('empresa_id').eq('user_id',u.data.user.id).single();if(p.error)throw Error(p.error.message);company=p.data.empresa_id;
-const r=await sb.from('estoque_inteligente').select('*').eq('empresa_id',company).order('id',{ascending:false});if(r.error)throw Error(r.error.message);items=r.data||[];const rs=await sb.from('estoque_reservas').select('*').eq('empresa_id',company).eq('status','Reservado');if(rs.error)throw Error(rs.error.message);reservas=rs.data||[];draw();
+const r=await sb.rpc('listar_catalogo_gestao_seguro',{p_tabela:'estoque_inteligente'});if(r.error)throw Error(r.error.message);items=r.data||[];const rs=await sb.from('estoque_reservas').select('*').eq('empresa_id',company).eq('status','Reservado');if(rs.error)throw Error(rs.error.message);reservas=rs.data||[];draw();
 }
 function draw(){
 $('#pageTitle').textContent='Estoque Inteligente';
@@ -59,7 +59,7 @@ $('#sf_results').innerHTML=options.length?'<p><b>'+options.length+' opção(ões
 }
 function edit(id){
 const x=items.find(z=>z.id===id)||{};photo=x.foto_data||null;
-const fields=[['nome','Nome *','text'],['cor','Cor / acabamento','text'],['espessura_mm','Espessura mm','number'],['largura_mm','Largura mm','number'],['comprimento_mm','Comprimento mm','number'],['marca','Marca','text'],['modelo','Modelo / referência','text'],['quantidade','Quantidade','number'],['estoque_minimo','Estoque mínimo','number'],['localizacao','Localização física','text'],['valor_unitario','Custo unitário','number']];
+const canSeeCost=typeof can==='function'&&can('orcamentos.ver_custos');const fields=[['nome','Nome *','text'],['cor','Cor / acabamento','text'],['espessura_mm','Espessura mm','number'],['largura_mm','Largura mm','number'],['comprimento_mm','Comprimento mm','number'],['marca','Marca','text'],['modelo','Modelo / referência','text'],['quantidade','Quantidade','number'],['estoque_minimo','Estoque mínimo','number'],['localizacao','Localização física','text'],...(canSeeCost?[['valor_unitario','Custo unitário','number']]:[])];
 const form='<div class="form-grid three"><label>Categoria<select id="st_categoria">'+['Sobra MDF','Chapa MDF','Ferragem','Insumo'].map(t=>'<option '+(x.categoria===t?'selected':'')+'>'+t+'</option>').join('')+'</select></label>'+fields.map(([k,label,type])=>'<label>'+label+'<input id="st_'+k+'" type="'+type+'" '+(type==='number'?'min="0" step="any"':'')+' value="'+esc(x[k]??(k==='quantidade'?1:''))+'"></label>').join('')+'<label>Sentido do veio<select id="st_veio">'+['Indiferente','No comprimento','Na largura'].map(t=>'<option '+(x.veio===t?'selected':'')+'>'+t+'</option>').join('')+'</select></label></div><label>Observações<textarea id="st_observacoes">'+esc(x.observacoes||'')+'</textarea></label><label>Foto<input id="st_foto" type="file" accept="image/*" capture="environment"></label><small>Confira as medidas com trena: a foto não mede o MDF.</small>';
 modal(id?'Editar estoque':'Novo item do estoque',form,async()=>{
 const p={empresa_id:company,categoria:$('#st_categoria').value,veio:$('#st_veio').value,observacoes:$('#st_observacoes').value};
