@@ -69,6 +69,24 @@ using (empresa_id = public.minha_empresa() and public.meu_papel() = 'admin');
 
 commit;
 
+-- Corrige o RPC utilizado pelo módulo de versões no app-v7.
+create or replace function public.listar_orcamento_versoes_seguras()
+returns setof public.orcamento_versoes
+language sql
+stable
+security invoker
+set search_path = public
+as $
+  select v.*
+  from public.orcamento_versoes v
+  join public.orcamentos o on o.id = v.orcamento_id
+  where o.empresa_id = public.minha_empresa()
+    and public.tem_permissao('orcamentos.ver')
+  order by v.orcamento_id, v.versao desc;
+$;
+revoke all on function public.listar_orcamento_versoes_seguras() from public, anon;
+grant execute on function public.listar_orcamento_versoes_seguras() to authenticated, service_role;
+
 -- PENDÊNCIA: ALTER DEFAULT PRIVILEGES para os proprietários postgres e
 -- supabase_admin não foi aplicado pela integração (permissão negada).
 -- Deve ser executado por um papel proprietário autorizado após validar
