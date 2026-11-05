@@ -29,6 +29,26 @@ Deno.serve(async(req)=>{
   const can=(code:string)=>profile.papel==="admin"?true:(overrides.has(code)?overrides.get(code)!:(BASE[profile.papel]||[]).includes(code));
   const body=await req.json().catch(()=>({})); const action=body.action||"catalog";
 
+  if(action==="public-link"){
+   if(!can("orcamentos.editar"))return json({error:"Sem permissão para gerar link de proposta."},403);
+   const publicQuoteId=num(body.quote_id,0);
+   if(!publicQuoteId)return json({error:"Orçamento inválido."},400);
+   const found=await admin.from("orcamentos").select("id,public_token").eq("id",publicQuoteId).eq("empresa_id",profile.empresa_id).maybeSingle();
+   if(found.error||!found.data)return json({error:"Orçamento não encontrado."},404);
+   let publicToken=found.data.public_token;
+   if(!publicToken){
+    publicToken=crypto.randomUUID();
+    const saved=await admin.from("orcamentos").update({public_token:publicToken}).eq("id",publicQuoteId).eq("empresa_id",profile.empresa_id).is("public_token",null).select("id").maybeSingle();
+    if(saved.error)return json({error:"Não foi possível gerar o link público."},500);
+    if(!saved.data){
+     const again=await admin.from("orcamentos").select("public_token").eq("id",publicQuoteId).eq("empresa_id",profile.empresa_id).single();
+     if(again.error||!again.data?.public_token)return json({error:"Não foi possível confirmar o link público."},500);
+     publicToken=again.data.public_token;
+    }
+   }
+   return json({token:publicToken});
+  }
+
   if(action==="catalog"){
    if(!can("orcamentos.ver"))return json({error:"Sem permissão para visualizar orçamentos."},403);
    const [mr,fr,er]=await Promise.all([
