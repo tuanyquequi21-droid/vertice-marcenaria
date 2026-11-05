@@ -40,7 +40,7 @@ jobs:
             postgres:17 \
             sh -ec 'pg_dump --dbname="$DB_URL" --format=custom --no-owner --no-acl --verbose --file=/backup/vertice.dump'
           test -s backup/vertice.dump
-          sha256sum backup/vertice.dump > backup/SHA256SUMS
+          (cd backup && sha256sum vertice.dump > SHA256SUMS && sha256sum --check SHA256SUMS)
 
       - name: Guardar backup privado no GitHub Actions
         uses: actions/upload-artifact@v4
