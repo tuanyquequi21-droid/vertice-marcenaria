@@ -82,5 +82,5 @@ const m=await sb.from('estoque_movimentos').insert({empresa_id:company,estoque_i
 if(m.error)alert('Saldo atualizado, mas falhou o histórico: '+m.error.message);closeModal();await loadStock();
 });
 }
-const prev=page;page=function(name){if(name!=='estoque-inteligente')return prev(name);document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));$('#content').innerHTML='Carregando estoque...';loadStock().catch(e=>$('#content').textContent='Erro: '+e.message)};
+const prev=page;page=function(name){if(name!=='estoque-inteligente')return prev(name);if(typeof can!=='function'||!can('materiais.ver')){$('#pageTitle').textContent='Acesso restrito';$('#content').textContent='Seu usuário não possui permissão para acessar o estoque.';return}document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));$('#content').innerHTML='Carregando estoque...';loadStock().catch(e=>$('#content').textContent='Erro: '+e.message)};
 })();

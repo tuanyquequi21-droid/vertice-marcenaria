@@ -173,7 +173,7 @@ function ensureUsersNav(){
  let b=nav.querySelector('[data-page="usuarios"]');
  if(can('usuarios.ver')){if(!b){b=document.createElement('button');b.dataset.page='usuarios';b.textContent='Usuários e permissões';b.onclick=()=>page('usuarios');nav.appendChild(b)}}else b?.remove();
 }
-function v8AllowedPage(name){let map={dashboard:'dashboard.ver',leads:'crm.ver',pipeline:'crm.ver',clientes:'clientes.ver',agenda:'agenda.ver',orcamentos:'orcamentos.ver',producao:'producao.ver',materiais:'materiais.ver',custos:'configuracoes.ver',financeiro:'financeiro.ver',relatorios:'relatorios.ver',comunicacoes:'crm.ver',posvenda:'posvenda.ver',usuarios:'usuarios.ver'};return !map[name]||can(map[name])}
+function v8AllowedPage(name){let map={dashboard:'dashboard.ver',leads:'crm.ver',pipeline:'crm.ver',clientes:'clientes.ver',agenda:'agenda.ver',orcamentos:'orcamentos.ver',producao:'producao.ver',materiais:'materiais.ver',custos:'configuracoes.ver',financeiro:'financeiro.ver',relatorios:'relatorios.ver',comunicacoes:'crm.ver',posvenda:'posvenda.ver',usuarios:'usuarios.ver','estoque-inteligente':'materiais.ver'};return !map[name]||can(map[name])}
 function applyPermissionUI(){
  let map={dashboard:'dashboard.ver',leads:'crm.ver',pipeline:'crm.ver',clientes:'clientes.ver',agenda:'agenda.ver',orcamentos:'orcamentos.ver',producao:'producao.ver',materiais:'materiais.ver',custos:'configuracoes.ver',financeiro:'financeiro.ver',relatorios:'relatorios.ver',comunicacoes:'crm.ver',posvenda:'posvenda.ver',usuarios:'usuarios.ver'};
  $$('nav button[data-page]').forEach(b=>{let c=map[b.dataset.page];if(c)b.style.display=can(c)?'':'none'});ensureUsersNav();
