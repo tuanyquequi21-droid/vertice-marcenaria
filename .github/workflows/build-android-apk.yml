@@ -31,6 +31,7 @@ jobs:
       - name: Create Android app container
         shell: bash
         run: |
+          LOGO_BASE64=$(cat assets/vertice-logo.jpg.b64)
           mkdir -p mobile-shell/www
           cd mobile-shell
           npm init -y
@@ -71,6 +72,7 @@ jobs:
           </body>
           </html>
           EOF
+          sed -i "s|\${VERTICE_LOGO_BASE64}|$LOGO_BASE64|g" www/index.html
           npx cap add android
           npx cap sync android
           base64 -d ../assets/vertice-logo.jpg.b64 > /tmp/vertice-logo.jpg
