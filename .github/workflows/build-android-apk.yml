@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - ".github/workflows/build-android-apk.yml"
+      - "assets/vertice-logo.jpg.b64"
 
 permissions:
   contents: read
@@ -61,17 +62,28 @@ jobs:
             <style>
               html,body{margin:0;width:100%;height:100%;background:#111;color:#d5b46a;font:16px Arial,sans-serif}
               .loading{height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
-              .mark{width:58px;height:58px;border:2px solid #b99a58;border-radius:14px;display:grid;place-items:center;font-size:30px;font-weight:bold}
+              .mark{width:min(82vw,360px);max-height:220px;object-fit:contain;display:block}
               .sub{color:#aaa;font-size:13px}
             </style>
           </head>
           <body>
-            <main class="loading"><div class="mark">V</div><strong>VÉRTICE GESTÃO</strong><span class="sub">Carregando seu ambiente...</span></main>
+            <main class="loading"><img class="mark" src="data:image/jpeg;base64,${VERTICE_LOGO_BASE64}" alt="Vértice Marcenaria"><strong>VÉRTICE GESTÃO</strong><span class="sub">Carregando seu ambiente...</span></main>
           </body>
           </html>
           EOF
           npx cap add android
           npx cap sync android
+          base64 -d ../assets/vertice-logo.jpg.b64 > /tmp/vertice-logo.jpg
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+          convert /tmp/vertice-logo.jpg -resize 512x512 -background black -gravity center -extent 512x512 /tmp/vertice-icon.png
+          for spec in "mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192"; do
+            density="${spec%%:*}"
+            size="${spec##*:}"
+            mkdir -p "android/app/src/main/res/mipmap-${density}"
+            convert /tmp/vertice-icon.png -resize "${size}x${size}" "android/app/src/main/res/mipmap-${density}/ic_launcher.png"
+            cp "android/app/src/main/res/mipmap-${density}/ic_launcher.png" "android/app/src/main/res/mipmap-${density}/ic_launcher_round.png"
+          done
 
       - name: Build debug APK
         run: |
