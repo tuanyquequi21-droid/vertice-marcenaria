@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/tuanyquequi21-droid/Vertice-site/main/Modelo.png?v=20261112">
+<link id="vertice-favicon" rel="icon" type="image/jpeg" href="assets/vertice-logo.jpg.b64">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vértice Gestão</title>
 <link rel="stylesheet" href="assets/css/app-v4.css">
@@ -11,7 +11,7 @@
 <body>
 <div id="login" class="login-shell">
   <form id="loginForm" class="login-card">
-    <img class="brand-logo login-brand-logo" src="https://raw.githubusercontent.com/tuanyquequi21-droid/Vertice-site/main/Modelo.png?v=20261105" alt="Vértice Marcenaria">
+    <img class="brand-logo login-brand-logo" src="assets/vertice-logo.jpg.b64" alt="Vértice Marcenaria">
     <h1>Vértice Gestão</h1><p>Marcenaria • CRM • Orçamentos • Produção</p>
     <label>E-mail<input id="loginEmail" type="email" required></label>
     <label>Senha<input id="loginPassword" type="password" required></label>
@@ -21,7 +21,7 @@
 
 <div id="app" class="app hidden">
 <aside id="sidebar" class="sidebar">
-  <div class="brand"><img class="brand-logo sidebar-brand-logo" src="https://raw.githubusercontent.com/tuanyquequi21-droid/Vertice-site/main/Modelo.png?v=20261105" alt="Vértice Marcenaria"><div class="brand-text"><b>VÉRTICE</b><span>GESTÃO</span></div></div>
+  <div class="brand"><img class="brand-logo sidebar-brand-logo" src="assets/vertice-logo.jpg.b64" alt="Vértice Marcenaria"><div class="brand-text"><b>VÉRTICE</b><span>GESTÃO</span></div></div>
   <button id="collapseBtn" class="collapse" title="Expandir ou recolher menu" aria-label="Expandir ou recolher menu" aria-expanded="true">☰</button>
   <nav>
     <button data-page="dashboard"><span>▦</span><em>Dashboard</em></button>
@@ -49,6 +49,22 @@
 
 <div id="modal" class="modal hidden"><div class="modal-card"><div class="modal-head"><h3 id="modalTitle"></h3><button onclick="closeModal()">×</button></div><div id="modalBody"></div><div id="modalActions" class="modal-actions"></div></div></div>
 
+<script>
+(async function(){
+ try {
+  const response=await fetch('assets/vertice-logo.jpg.b64',{cache:'force-cache'});
+  if(!response.ok) throw new Error('Logo Vértice indisponível');
+  const encoded=(await response.text()).trim();
+  const imageUrl='data:image/jpeg;base64,'+encoded;
+  document.querySelectorAll('.brand-logo').forEach(img=>{img.src=imageUrl;});
+  const favicon=document.getElementById('vertice-favicon');
+  if(favicon) favicon.href=imageUrl;
+  let apple=document.querySelector('link[rel="apple-touch-icon"]');
+  if(!apple){apple=document.createElement('link');apple.rel='apple-touch-icon';document.head.appendChild(apple);}
+  apple.href=imageUrl;
+ } catch(error){console.error('Falha ao carregar a identidade visual Vértice:',error);}
+})();
+</script>
 <script src="config.js"></script>
 <script src="assets/js/diagnostics.js?v=1"></script>
 <script src="assets/js/app-v6.js?v=20261109-nicho1"></script>
