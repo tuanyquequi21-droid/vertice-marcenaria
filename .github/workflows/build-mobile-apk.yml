@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'mobile-native/**'
+      - 'assets/vertice-logo.jpg.b64'
       - '.github/workflows/build-mobile-apk.yml'
 jobs:
   build:
@@ -25,6 +26,20 @@ jobs:
         run: |
           npx cap add android
           npx cap sync android
+      - name: Apply official Vértice app icon
+        working-directory: mobile-native
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+          base64 -d ../assets/vertice-logo.jpg.b64 > /tmp/vertice-logo.jpg
+          convert /tmp/vertice-logo.jpg -resize 512x512 -background black -gravity center -extent 512x512 /tmp/vertice-icon.png
+          for spec in "mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192"; do
+            density="${spec%%:*}"
+            size="${spec##*:}"
+            mkdir -p "android/app/src/main/res/mipmap-${density}"
+            convert /tmp/vertice-icon.png -resize "${size}x${size}" "android/app/src/main/res/mipmap-${density}/ic_launcher.png"
+            cp "android/app/src/main/res/mipmap-${density}/ic_launcher.png" "android/app/src/main/res/mipmap-${density}/ic_launcher_round.png"
+          done
       - name: Build debug APK
         working-directory: mobile-native
         run: |
