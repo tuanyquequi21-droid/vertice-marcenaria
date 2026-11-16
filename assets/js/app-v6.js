@@ -22,6 +22,8 @@ async function init(){
 async function login(e){e.preventDefault();$("#loginMsg").textContent="";let {error}=await sb.auth.signInWithPassword({email:$("#loginEmail").value,password:$("#loginPassword").value});if(error)$("#loginMsg").textContent=error.message}
 async function sessionUI(s){$("#login").classList.toggle("hidden",!!s);$("#app").classList.toggle("hidden",!s);if(s){await load();page("dashboard")}}
 async function q(t){
+ /* Usuários comerciais podem trabalhar com leads e orçamentos sem permissão de leitura da carteira de clientes. */
+ if(t==="clientes"&&typeof can==="function"&&!can("clientes.ver"))return[];
  if(t==="orcamentos"){let {data,error}=await sb.rpc("listar_orcamentos_seguros");if(error){console.warn(t,error.message);return[]}return Array.isArray(data)?data:[]}
  if(["materiais","chapas_mdf","ferragens","mao_obra_funcoes"].includes(t)){let {data,error}=await sb.rpc("listar_catalogo_gestao_seguro",{p_tabela:t});if(error){console.warn(t,error.message);return[]}return Array.isArray(data)?data:[]}
  let {data,error}=await sb.from(t).select("*");if(error){console.warn(t,error.message);return[]}return data||[]
