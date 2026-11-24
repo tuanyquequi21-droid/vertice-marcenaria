@@ -92,21 +92,39 @@ grant execute on function public.substituir_itens_orcamento(bigint,jsonb,jsonb,j
 
 -- Preenche automaticamente empresa_id nos módulos que gravam dados sem enviar esse campo.
 -- A política RLS continua validando a empresa do usuário.
+drop trigger if exists gestao_empresa_auto on public.auditoria;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.auditoria for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.automacoes_crm;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.automacoes_crm for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.calculadora_nichos_config;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.calculadora_nichos_config for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.chapas_mdf;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.chapas_mdf for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.clientes;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.clientes for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.config_global;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.config_global for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.crm_interacoes;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.crm_interacoes for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.crm_leads;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.crm_leads for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.crm_tarefas;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.crm_tarefas for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.custos_operacionais;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.custos_operacionais for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.estoque_inteligente;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.estoque_inteligente for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.estoque_movimentos;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.estoque_movimentos for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.estoque_reservas;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.estoque_reservas for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.ferragens;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.ferragens for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.gestao2_registros;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.gestao2_registros for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.gestao_plus_registros;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.gestao_plus_registros for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.mensagens_modelo;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.mensagens_modelo for each row execute function public.gestao_preencher_empresa();
+drop trigger if exists gestao_empresa_auto on public.orcamento_custos;
 create trigger gestao_empresa_auto before insert or update of empresa_id on public.orcamento_custos for each row execute function public.gestao_preencher_empresa();
